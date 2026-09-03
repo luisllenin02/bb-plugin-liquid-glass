@@ -578,6 +578,15 @@ html [data-promptbox-shell] > .grid > * {
   html [data-testid="root-compose-compact-composer"] [data-promptbox] {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / max(var(--lg-chrome-a, 0.72), 0.7)) !important;
   }
+  /* The new-thread dock ends where the layout's safe-area padding begins,
+     so its tint stopped in a hard line above the phone's home indicator.
+     Extend the dock through that strip so the tint runs to the screen edge. */
+  html [data-testid="root-compose-compact-composer"] {
+    bottom: calc(-1 * var(--bb-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+  html [data-testid="root-compose-compact-composer"] > .bg-background {
+    padding-bottom: calc(1rem + var(--bb-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  }
 }
 @media (prefers-reduced-transparency: reduce) {
   :root, .light, .dark { --glass-overlay-a: 1; --lg-composer-idle-a: 1; --lg-composer-focus-a: 1; }
