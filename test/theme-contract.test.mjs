@@ -47,7 +47,7 @@ test("manifest contributes both Liquid Glass palettes plus a server and an app",
   }
   assert.equal(manifest.engines.bb, ">=0.41");
   assert.equal(manifest.engines.bbPluginSdk, ">=0.4.8");
-  assert.equal(manifest.version, "0.5.7");
+  assert.equal(manifest.version, "0.5.8");
   assert.ok(manifest.dependencies.zod, "zod must be a runtime dependency");
   for (const dependency of ["clsx", "tailwind-merge"]) {
     assert.ok(
@@ -312,6 +312,10 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(
       css,
       /:is\(\[role="tooltip"\], \[data-radix-popper-content-wrapper\] > \.bg-primary\) \{\n\s*color: var\(--foreground\);\n\}/,
+    );
+    assert.match(
+      css,
+      /\[data-testid="root-compose-compact-home"\] \{\n\s*background-color: transparent;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
     );
     assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*background-image: none/);
     for (const token of ["--card", "--popover", "--surface-raised"]) {
