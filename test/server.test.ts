@@ -195,7 +195,8 @@ describe("the wallpaper route", () => {
     const response = await harness.behavior.fetchHttp("GET", "/wallpaper");
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/png");
-    expect(response.headers.get("cache-control")).toBe("no-cache");
+    expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect(response.headers.get("etag")).toMatch(/^"\d+-\d+"$/);
     expect(new Uint8Array(await response.arrayBuffer())).toHaveLength(4);
   });
 

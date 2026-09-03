@@ -68,12 +68,17 @@ export async function wallpaperResponse(
     });
   }
   const body = await readFile(check.path);
+  // The content script appends the server's write stamp as `?v=`, so every
+  // change to the wallpaper is a new URL; the bytes behind one URL never
+  // change and can sit in the browser cache instead of reloading with the
+  // page. The ETag lets a stale cache revalidate without the body.
   return new Response(new Uint8Array(body), {
     status: 200,
     headers: {
       "content-type": check.contentType,
       "content-length": String(check.bytes),
-      "cache-control": "no-cache",
+      "cache-control": "public, max-age=31536000, immutable",
+      etag: `"${check.bytes}-${body.length}"`,
     },
   });
 }
