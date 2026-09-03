@@ -139,6 +139,17 @@ describe("resolveVars", () => {
     );
   });
 
+  it("MANAGED_VARS matches exactly the keys resolveVars can produce", () => {
+    // Only a custom wallpaper backed by a local path adds `--lg-wallpaper-custom`;
+    // this is the one call that exercises every key at once.
+    const { vars } = resolveVars(
+      { ...DEFAULT_APPEARANCE, wallpaper: "custom", wallpaperPath: "/tmp/a.png" },
+      "dark",
+      1,
+    );
+    expect(Object.keys(vars).sort()).toEqual([...MANAGED_VARS].sort());
+  });
+
   it("changes the wallpaper URL when the server's updatedAt moves", () => {
     const local = {
       ...DEFAULT_APPEARANCE,

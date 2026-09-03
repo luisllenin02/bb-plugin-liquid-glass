@@ -219,16 +219,14 @@ html[data-lg-wallpaper="custom"] {
 /* monocode's "Main pane glass" toggle. The default matches monocode's own
    default (on); switching it off holds the main pane near-opaque so long
    transcripts stay readable over a busy wallpaper. */
-html[data-lg-pane-glass="on"] {
-  --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a));
-  --card: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
-  --popover: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
-}
-
+/* "on" needs no rule: the palette block above already resolves --background to
+   the pane alpha and --card/--popover to the overlay alpha. Only "off" differs,
+   and only in --background -- redeclaring --card/--popover here at
+   (0,1,1) would outrank the @supports fallback below, which is a plain
+   `:root` at (0,1,0), and pin the sheets at 0.94 on engines with no
+   backdrop-filter. */
 html[data-lg-pane-glass="off"] {
   --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
-  --card: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
-  --popover: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
 }
 
 /* The pane's translucent fill is enough to read as glass. A full-height
@@ -333,8 +331,12 @@ body { position: relative; isolation: isolate; background-color: var(--canvas); 
    input, so do not make their first frame wait on an expensive backdrop-filter
    raster. Their near-opaque overlay fill above still keeps them visually
    distinct from the active pane. Dialogs, drawers, toasts, and the command
-   palette are not popper-positioned and keep their glass. */
-html :is([role="menu"], [role="listbox"], [data-radix-popper-content-wrapper] > *) {
+   palette are not popper-positioned and keep their glass.
+   The sheet list above scores two attributes (its drawer member carries a
+   `:not()`), so the single-attribute members here lost to it and every menu
+   still allocated a blur(32px) layer. Double each attribute so this rule
+   scores (0,2,1) and actually wins. */
+html :is([role="menu"][role="menu"], [role="listbox"][role="listbox"], [data-radix-popper-content-wrapper][data-radix-popper-content-wrapper] > *) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
@@ -359,8 +361,9 @@ html [data-promptbox] {
   -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
   backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
 }
-:is(header.bg-surface-scrim, [data-secondary-panel-shelf]),
-:is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
+/* Header chrome and dock chrome share one clear, blurred base; only the
+   gradient direction and hairline below differ, so they are declared once. */
+:is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
   background-color: transparent;
   -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
   backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
@@ -415,10 +418,6 @@ html [data-thread-window] .chat-prompt-box {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   box-shadow: none !important;
-}
-html [data-thread-window] .sticky.bottom-0 > .bg-background > [data-overflow-fade="above"],
-html [data-thread-window] .sticky.bottom-0 > .bg-sidebar > [data-overflow-fade="above"] {
-  display: none !important;
 }
 /* Banners and the follow-up footer are part of this same dock; remove the
    earlier generic chrome gradient from their own seams as well. */
@@ -518,9 +517,10 @@ html [data-thread-window][data-lg-thread-composer-collapsed]
 /* The production footer is mounted as the direct child of a sticky dock. Use
    that stable relationship as a final escape hatch: it avoids relying on
    ancestor `:has()` matching in embedded Chromium shells and clears the host
-   utility that paints the dark bottom band. */
-html [data-thread-window] .sticky.bottom-0,
-html [data-thread-window] .sticky.bottom-0 > .bg-background {
+   utility that paints the dark bottom band. The dock's own `> .bg-background`
+   child is already cleared by the rule above at the same specificity, so it
+   is not repeated here. */
+html [data-thread-window] .sticky.bottom-0 {
   background: transparent !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
@@ -619,10 +619,5 @@ html [data-promptbox-shell] > .grid > * {
     --card: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
     --popover: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
     --surface-raised: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
-  }
-
-  html[data-lg-pane-glass="on"],
-  html[data-lg-pane-glass="off"] {
-    --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
   }
 }

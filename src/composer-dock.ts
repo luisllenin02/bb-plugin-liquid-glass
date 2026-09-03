@@ -46,7 +46,8 @@ export const DOCK_UI_ATTRIBUTE = "data-lg-dock-ui";
 export const DOCK_CLASS = "lg-dock";
 export const RAIL_CLASS = "lg-deck-rail";
 export const COMPACT_MEDIA = "(max-width: 767px), (pointer: coarse)";
-const STACK_SELECTOR = "[data-app-composer] > .grid";
+const COMPOSER_SELECTOR = "[data-app-composer]";
+const STACK_SELECTOR = `${COMPOSER_SELECTOR} > .grid`;
 const MAX_PILL_CHARS = 28;
 const MAX_RAIL_CHARS = 48;
 const INTERACTIVE_SELECTOR = "button, a, input, textarea, select, [role='button'], [contenteditable]";
@@ -257,15 +258,28 @@ function compact(text: string, max = MAX_PILL_CHARS): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+/**
+ * One scan asks for the same card's header text up to four times — the unit
+ * filter, the meter test, the pills, the rail — and each ask walked the card's
+ * text nodes again. The DOM cannot change under a synchronous scan, so
+ * remember the walks for its duration; `scan` opens and closes the memo.
+ */
+let textMemo: Map<Element, string> | null = null;
+let headerMemo: Map<Element, Element> | null = null;
+
 /** `textContent` runs adjacent labels together ("GoalPaused0 of 4"); join text nodes with spaces instead. */
 function visibleText(root: Element): string {
+  const memo = textMemo?.get(root);
+  if (memo !== undefined) return memo;
   const parts: string[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const value = node.nodeValue?.replace(/\s+/g, " ").trim();
     if (value) parts.push(value);
   }
-  return parts.join(" ").replace(/\s+([,.:])/g, "$1").replace(/~\s+/g, "~");
+  const text = parts.join(" ").replace(/\s+([,.:])/g, "$1").replace(/~\s+/g, "~");
+  textMemo?.set(root, text);
+  return text;
 }
 
 /**
@@ -274,6 +288,14 @@ function visibleText(root: Element): string {
  * its numbers) is its own header.
  */
 function headerOf(banner: Element): Element {
+  const memo = headerMemo?.get(banner);
+  if (memo !== undefined) return memo;
+  const header = findHeader(banner);
+  headerMemo?.set(banner, header);
+  return header;
+}
+
+function findHeader(banner: Element): Element {
   const explicit = banner.querySelector('[class*="header-row"], [class*="header"], header');
   if (explicit) return explicit;
   for (const child of Array.from(banner.children)) {
@@ -299,9 +321,11 @@ function toneOf(banner: Element, text: string): "live" | "alert" | "idle" {
 /** The Context Meter banner: a progress bar plus "~123k / 260k". */
 export function isContextMeter(leaf: Element): boolean {
   if (leaf.closest('[data-bb-plugin="context-meter"]')) return true;
+  // The bar test first: it is one selector match, where the text test walks
+  // every text node of a card that is usually not the meter at all.
   return (
-    /\d+\s*k\s*\/\s*\d+\s*k/i.test(visibleText(leaf)) &&
-    leaf.querySelector('[class*="rounded-full"]') !== null
+    leaf.querySelector('[class*="rounded-full"]') !== null &&
+    /\d+\s*k\s*\/\s*\d+\s*k/i.test(visibleText(leaf))
   );
 }
 
@@ -320,7 +344,7 @@ function isUi(element: Element): boolean {
  */
 type Unit = { item: HTMLElement; leaves: Element[] };
 
-function unitsOf(stack: Element, skip: (leaf: Element) => boolean): Unit[] {
+function unitsOf(stack: Element): Unit[] {
   const units: Unit[] = [];
   const leavesIn = (element: Element): Element[] =>
     isGroup(element)
@@ -332,13 +356,29 @@ function unitsOf(stack: Element, skip: (leaf: Element) => boolean): Unit[] {
       for (const child of Array.from(element.children)) visit(child);
       return;
     }
-    const leaves = leavesIn(element).filter(
-      (leaf) => !skip(leaf) && visibleText(headerOf(leaf)) !== "",
-    );
+    const leaves = leavesIn(element).filter((leaf) => visibleText(headerOf(leaf)) !== "");
     if (leaves.length > 0) units.push({ item: element as HTMLElement, leaves });
   };
   for (const child of Array.from(stack.children)) visit(child);
   return units;
+}
+
+/**
+ * The dock's cards are the stack's units minus the meter when it has left for
+ * the footer row. Filtering the one list the scan already built is the same
+ * answer as walking the stack a second time with a skip predicate.
+ */
+function withoutLeaf(units: Unit[], skip: Element): Unit[] {
+  const kept: Unit[] = [];
+  for (const unit of units) {
+    if (!unit.leaves.includes(skip)) {
+      kept.push(unit);
+      continue;
+    }
+    const leaves = unit.leaves.filter((leaf) => leaf !== skip);
+    if (leaves.length > 0) kept.push({ item: unit.item, leaves });
+  }
+  return kept;
 }
 
 /**
@@ -501,9 +541,7 @@ function markDeck(stack: Element, units: Unit[], state: DeckState): Element[] {
 /** The rail on the deck's right edge, reconciled in place like the pills. */
 function renderRail(
   composer: HTMLElement,
-  stack: HTMLElement,
   visual: Element[],
-  state: DeckState,
   below: number,
   handlers: { preview(index: number | null): void; front(index: number): void },
 ): void {
@@ -593,7 +631,16 @@ function renderRail(
   if (rail.lastElementChild !== menu) rail.append(menu);
 }
 
-export function installComposerDock(signal: AbortSignal): () => void {
+/** Attributes whose changes can move a card between tones; see `toneOf`. */
+export const DOCK_ATTRIBUTE_FILTER = ["data-status", "data-full-active", "data-open"];
+
+/** Subscribe to the plugin's shared document observer (app.tsx owns it). */
+export type WatchDocument = (watcher: {
+  wants(record: MutationRecord): boolean;
+  scan(): void;
+}) => () => void;
+
+export function installComposerDock(signal: AbortSignal, watch: WatchDocument): () => void {
   const style = document.createElement("style");
   style.setAttribute("data-lg-composer-dock", "");
   style.textContent = CSS;
@@ -603,6 +650,8 @@ export function installComposerDock(signal: AbortSignal): () => void {
     typeof window.matchMedia === "function" ? window.matchMedia(COMPACT_MEDIA) : null;
   const stateByComposer = new WeakMap<HTMLElement, DeckState>();
   const composersWithListener = new WeakSet<Element>();
+  /** The presentation each composer currently wears; "cards" means no marks. */
+  const appliedTo = new WeakMap<HTMLElement, DockPresentation>();
   let mode = readDockMode();
   let meterPlacement = readMeterPlacement();
   let pendingFrame: number | null = null;
@@ -625,7 +674,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
 
   const onPillClick = (event: Event): void => {
     const pill = (event.target as Element | null)?.closest<HTMLElement>(`.${DOCK_CLASS}-pill`);
-    const composer = pill?.closest<HTMLElement>("[data-app-composer]");
+    const composer = pill?.closest<HTMLElement>(COMPOSER_SELECTOR);
     if (!pill || !composer) return;
     toggleIndex(composer, Number(pill.dataset.index));
   };
@@ -635,7 +684,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
   // controls (edit, close, expand) pass through.
   const onComposerClick = (event: Event): void => {
     const target = event.target as Element | null;
-    const composer = target?.closest<HTMLElement>("[data-app-composer]");
+    const composer = target?.closest<HTMLElement>(COMPOSER_SELECTOR);
     if (!composer) return;
     if (target?.closest(`.${RAIL_CLASS}`)) return;
     const control = target?.closest(INTERACTIVE_SELECTOR);
@@ -679,24 +728,28 @@ export function installComposerDock(signal: AbortSignal): () => void {
   };
 
   /** The meter leaves the stack only where there is a footer row to sit in and a pointer to hover with. */
-  const placeMeter = (composer: HTMLElement, stack: Element): Element | null => {
+  const placeMeter = (composer: HTMLElement, stack: Element, units: Unit[]): Element | null => {
     const previous = stack.querySelector(`[${METER_ATTRIBUTE}]`);
-    const under =
-      meterPlacement === "under" &&
-      !(media?.matches ?? false) &&
-      composer.querySelector("[data-follow-up-composer-footer]") !== null;
-    const meter = under
-      ? unitsOf(stack, () => false)
-          .flatMap((unit) => unit.leaves)
-          .find((leaf) => isContextMeter(leaf)) ?? null
-      : null;
+    const footer =
+      meterPlacement === "under" && !(media?.matches ?? false)
+        ? composer.querySelector<HTMLElement>("[data-follow-up-composer-footer]")
+        : null;
+    // The scan already walked the stack; search the units it built rather than
+    // walking it a second time.
+    let meter: Element | null = null;
+    if (footer) {
+      for (const unit of units) {
+        meter = unit.leaves.find((leaf) => isContextMeter(leaf)) ?? null;
+        if (meter) break;
+      }
+    }
     if (previous && previous !== meter) {
       previous.removeAttribute(METER_ATTRIBUTE);
       previous.removeAttribute(DOCK_OPEN_ATTRIBUTE);
     }
-    if (meter) {
+    if (footer && meter) {
       setAttr(meter, METER_ATTRIBUTE, "under");
-      fitMeter(composer, meter as HTMLElement);
+      fitMeter(composer, footer, meter as HTMLElement);
     }
     setAttr(composer, METER_HOST_ATTRIBUTE, meter ? "" : null);
     return meter;
@@ -707,9 +760,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
    * project/machine labels on the left and the start of the controls on the
    * right. Widened, it fills that gap, so it never sits on either.
    */
-  const fitMeter = (composer: HTMLElement, meter: HTMLElement): void => {
-    const footer = composer.querySelector<HTMLElement>("[data-follow-up-composer-footer]");
-    if (!footer) return;
+  const fitMeter = (composer: HTMLElement, footer: HTMLElement, meter: HTMLElement): void => {
     const base = composer.getBoundingClientRect();
     const row = footer.getBoundingClientRect();
     const groups = Array.from(footer.children) as HTMLElement[];
@@ -739,6 +790,18 @@ export function installComposerDock(signal: AbortSignal): () => void {
   };
 
   const scan = (): void => {
+    // Header text and header elements are stable for the length of one scan.
+    textMemo = new Map();
+    headerMemo = new Map();
+    try {
+      scanOnce();
+    } finally {
+      textMemo = null;
+      headerMemo = null;
+    }
+  };
+
+  const scanOnce = (): void => {
     const presentation = resolveDockMode(mode);
     for (const stack of Array.from(document.querySelectorAll<HTMLElement>(STACK_SELECTOR))) {
       const composer = stack.parentElement;
@@ -747,12 +810,21 @@ export function installComposerDock(signal: AbortSignal): () => void {
         composer.addEventListener("click", onComposerClick);
         composersWithListener.add(composer);
       }
-      const meter = placeMeter(composer, stack);
-      const units = unitsOf(stack, (leaf) => leaf === meter);
+      const all = unitsOf(stack);
+      const meter = placeMeter(composer, stack, all);
+      const units = meter ? withoutLeaf(all, meter) : all;
       const leaves = units.flatMap((unit) => unit.leaves);
       setAttr(composer, DOCK_CARDS_ATTRIBUTE, String(leaves.length));
+      // Clear only the presentation this composer is leaving. Every scan used
+      // to walk the stack for marks of both other presentations, whether or
+      // not any had ever been applied — four stack-wide queries a scan, in the
+      // mode a phone sits in all day.
+      const applied = appliedTo.get(composer) ?? "cards";
       if (presentation === "cards" || leaves.length === 0) {
-        release(composer, stack);
+        if (applied !== "cards") {
+          release(composer, stack);
+          appliedTo.set(composer, "cards");
+        }
         continue;
       }
       const state = stateOf(composer);
@@ -762,12 +834,15 @@ export function installComposerDock(signal: AbortSignal): () => void {
         // Read layout before this composer's writes so the scan forces at
         // most one synchronous layout per composer.
         const below = composer.getBoundingClientRect().bottom - stack.getBoundingClientRect().bottom;
-        composer.querySelector(`:scope > .${DOCK_CLASS}`)?.remove();
-        composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
-        clearHiddenMarks(stack);
-        composer.setAttribute(DOCK_STACK_ATTRIBUTE, "");
+        if (applied !== "stack") {
+          composer.querySelector(`:scope > .${DOCK_CLASS}`)?.remove();
+          composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
+          clearHiddenMarks(stack);
+        }
+        setAttr(composer, DOCK_STACK_ATTRIBUTE, "");
+        appliedTo.set(composer, "stack");
         const visual = markDeck(stack, units, state);
-        renderRail(composer, stack, visual, state, below, {
+        renderRail(composer, visual, below, {
           preview: (index) => {
             if (state.preview === index) return;
             state.preview = index;
@@ -780,14 +855,18 @@ export function installComposerDock(signal: AbortSignal): () => void {
         });
         continue;
       }
-      composer.removeAttribute(DOCK_STACK_ATTRIBUTE);
-      clearDeckMarks(stack, composer);
-      composer.setAttribute(DOCK_COLLAPSED_ATTRIBUTE, "");
+      if (applied !== "pills") {
+        composer.removeAttribute(DOCK_STACK_ATTRIBUTE);
+        clearDeckMarks(stack, composer);
+      }
+      setAttr(composer, DOCK_COLLAPSED_ATTRIBUTE, "");
+      appliedTo.set(composer, "pills");
       markHidden(stack, leaves, state.expanded);
       renderPills(ensureDock(composer, stack), leaves, state.expanded);
     }
   };
 
+  // Resize fires in bursts while a window is dragged; one scan per frame.
   const scheduleScan = (): void => {
     if (pendingFrame !== null) return;
     pendingFrame = window.requestAnimationFrame(() => {
@@ -796,22 +875,43 @@ export function installComposerDock(signal: AbortSignal): () => void {
     });
   };
 
-  const onModeChange = (): void => {
+  const onModeChange = (event: Event): void => {
+    // A `storage` event fires for every key this app writes; only ours can
+    // change the dock.
+    const key = (event as StorageEvent).key;
+    if (key != null && key !== DOCK_MODE_KEY && key !== METER_PLACEMENT_KEY) return;
     mode = readDockMode();
     meterPlacement = readMeterPlacement();
     scan();
   };
 
+  /**
+   * Only a mutation inside a composer — or one that mounts a new composer —
+   * can change what the dock renders. A streaming reply mutates the transcript
+   * many times a second, and each of those used to cost a full-document scan
+   * with a text walk over every card.
+   */
+  const wants = (record: MutationRecord): boolean => {
+    const target = record.target;
+    const element =
+      target.nodeType === Node.ELEMENT_NODE ? (target as Element) : target.parentElement;
+    if (element?.closest(COMPOSER_SELECTOR)) return true;
+    if (record.type !== "childList") return false;
+    const added = record.addedNodes;
+    for (let index = 0; index < added.length; index += 1) {
+      const node = added[index];
+      if (node.nodeType !== Node.ELEMENT_NODE) continue;
+      const candidate = node as Element;
+      if (candidate.matches(COMPOSER_SELECTOR) || candidate.querySelector(COMPOSER_SELECTOR)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   // The stack re-renders as runs progress; one scan per frame keeps the pills,
   // deck, and rail current without doing work on every mutation record.
-  const observer = new MutationObserver(scheduleScan);
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: ["data-status", "data-full-active", "data-open"],
-  });
+  const unwatch = watch({ wants, scan });
   window.addEventListener(DOCK_MODE_EVENT, onModeChange);
   window.addEventListener("storage", onModeChange);
   window.addEventListener("resize", scheduleScan, { passive: true });
@@ -819,7 +919,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
   scan();
 
   const dispose = (): void => {
-    observer.disconnect();
+    unwatch();
     window.removeEventListener(DOCK_MODE_EVENT, onModeChange);
     window.removeEventListener("storage", onModeChange);
     window.removeEventListener("resize", scheduleScan);

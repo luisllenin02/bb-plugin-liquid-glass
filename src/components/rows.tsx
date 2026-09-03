@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from "react";
 
+import { clamp } from "../appearance.js";
 import { cn } from "../lib/utils.js";
 
 export function Row({
@@ -57,8 +58,7 @@ export function Slider({
         step={step ?? 1}
         value={value}
         onChange={(event) => {
-          const requested = Number(event.target.value);
-          onChange(Math.min(max, Math.max(min, requested)));
+          onChange(clamp(Number(event.target.value), min, max));
         }}
       />
       <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">

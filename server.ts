@@ -120,7 +120,9 @@ export default function plugin(bb: BbPluginApi) {
     },
   });
 
-  bb.http.route("GET", "/wallpaper", () => wallpaperResponse(read));
+  bb.http.route("GET", "/wallpaper", (c) =>
+    wallpaperResponse(read, c.req.header("if-none-match")),
+  );
 
   bb.cli.register({
     name: "liquid-glass",

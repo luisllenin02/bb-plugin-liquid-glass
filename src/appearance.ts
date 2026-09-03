@@ -157,7 +157,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
 
 export type Palette = "dark" | "light";
 
-export const THEME_ID_PREFIX = "plugin:liquid-glass:";
+const THEME_ID_PREFIX = "plugin:liquid-glass:";
 
 /**
  * Which palette an active bb theme id selects, or null when the active theme
@@ -168,16 +168,6 @@ export function paletteForThemeId(themeId: string | null): Palette | null {
   if (themeId === `${THEME_ID_PREFIX}liquid-glass-light`) return "light";
   return null;
 }
-
-/**
- * Retained for consumers of the phase-one appearance module. Contrast is no
- * longer enforced with a hue-independent sub-band; `resolveVars` searches this
- * full user-facing range using the actual accent and canvas colours.
- */
-export const ACCENT_LIGHTNESS_BAND: Record<Palette, { min: number; max: number }> = {
-  dark: { min: RANGES.accentLightness.min, max: RANGES.accentLightness.max },
-  light: { min: RANGES.accentLightness.min, max: RANGES.accentLightness.max },
-};
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));

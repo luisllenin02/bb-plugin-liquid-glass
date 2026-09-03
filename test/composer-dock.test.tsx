@@ -245,6 +245,37 @@ describe("the composer-dock content script", () => {
     expect(nextDockMode("pills")).toBe("cards");
   });
 
+  it("does no work for mutations outside a composer, and still finds a new one", async () => {
+    vi.useFakeTimers();
+    writeDockMode("pills");
+    buildComposer();
+    await mount();
+    // Let the dock's own first render settle; it reconciles to nothing.
+    await vi.advanceTimersByTimeAsync(20);
+    const querySelectorAll = vi.spyOn(document, "querySelectorAll");
+    const scans = () =>
+      querySelectorAll.mock.calls.filter(([selector]) => selector === "[data-app-composer] > .grid")
+        .length;
+    querySelectorAll.mockClear();
+
+    // A streaming reply: text churn in the transcript, nowhere near the dock.
+    const transcript = document.createElement("div");
+    document.body.append(transcript);
+    for (let index = 0; index < 5; index += 1) {
+      transcript.textContent = `token ${index}`;
+      await Promise.resolve();
+    }
+    await vi.advanceTimersByTimeAsync(20);
+    expect(scans()).toBe(0);
+
+    // A composer mounting anywhere in the document is still picked up.
+    const second = buildComposer();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(scans()).toBe(1);
+    expect(pillsOf(second.composer).length).toBeGreaterThan(0);
+    querySelectorAll.mockRestore();
+  });
+
   it("removes the pills when the stack empties and cleans up on dispose", async () => {
     vi.useFakeTimers();
     writeDockMode("pills");

@@ -17,7 +17,7 @@ import {
 } from "./src/appearance.js";
 import { APPEARANCE_EVENT } from "./src/theme-mode.js";
 import { AppearanceSection } from "./src/components/AppearanceSection.js";
-import { installComposerDock } from "./src/composer-dock.js";
+import { DOCK_ATTRIBUTE_FILTER, installComposerDock } from "./src/composer-dock.js";
 import { DockToggleButton } from "./src/components/DockToggleButton.js";
 
 /**
@@ -63,6 +63,79 @@ const THREAD_COMPOSER_COLLAPSED_ATTRIBUTE = 'data-lg-thread-composer-collapsed';
 const COMPOSER_COLLAPSE_DELAY_MS = 48;
 
 /**
+ * One document-wide MutationObserver for the whole plugin. Both content
+ * scripts have to notice a newly mounted thread or composer, and two observers
+ * on `document.body` mean the engine queues every mutation twice and two
+ * full-document scans compete in the same frame. A watcher says which records
+ * could change what it renders; the dirty ones run once, in the next frame.
+ */
+type DocumentWatcher = {
+  wants(record: MutationRecord): boolean;
+  scan(): void;
+};
+
+const watchers = new Set<DocumentWatcher>();
+const dirtyWatchers = new Set<DocumentWatcher>();
+let documentObserver: MutationObserver | null = null;
+let watcherFrame: number | null = null;
+/**
+ * Bumped whenever nodes are added or removed anywhere. Per-frame code caches
+ * DOM lookups against this stamp instead of repeating them: while the element
+ * tree is unchanged, a cached answer is the same answer.
+ */
+let treeVersion = 0;
+
+function flushWatchers(): void {
+  watcherFrame = null;
+  const due = Array.from(dirtyWatchers);
+  dirtyWatchers.clear();
+  for (const watcher of due) if (watchers.has(watcher)) watcher.scan();
+}
+
+function watchDocument(watcher: DocumentWatcher): () => void {
+  watchers.add(watcher);
+  if (documentObserver === null) {
+    documentObserver = new MutationObserver((records) => {
+      let structural = false;
+      for (const record of records) {
+        if (record.type === 'childList') structural = true;
+        // Every watcher is already due: the rest of the burst is only worth
+        // reading for the tree stamp.
+        if (dirtyWatchers.size === watchers.size) continue;
+        for (const candidate of watchers) {
+          if (!dirtyWatchers.has(candidate) && candidate.wants(record)) {
+            dirtyWatchers.add(candidate);
+          }
+        }
+      }
+      if (structural) treeVersion += 1;
+      if (dirtyWatchers.size > 0 && watcherFrame === null) {
+        watcherFrame = window.requestAnimationFrame(flushWatchers);
+      }
+    });
+    documentObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      // The union of what the watchers need: only the dock reads attributes.
+      attributeFilter: DOCK_ATTRIBUTE_FILTER,
+    });
+  }
+  return () => {
+    watchers.delete(watcher);
+    dirtyWatchers.delete(watcher);
+    if (watchers.size > 0) return;
+    documentObserver?.disconnect();
+    documentObserver = null;
+    if (watcherFrame !== null) {
+      window.cancelAnimationFrame(watcherFrame);
+      watcherFrame = null;
+    }
+  };
+}
+
+/**
  * The host already owns the compact follow-up composer presentation. Bridge
  * the thread's scroll position to that presentation instead of duplicating
  * its layout rules in the theme.
@@ -73,9 +146,41 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
   const pendingFrames = new Map<HTMLElement, number>();
   const pendingCollapseTimers = new Map<HTMLElement, number>();
   let pendingWindowFrame: number | null = null;
-  let pendingScanFrame: number | null = null;
   let lastWindowScrollTop =
     window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+
+  // Both scroll paths need a thread's follow-up composer on every frame, and
+  // `querySelector` on a thread window walks the whole transcript to find it.
+  // The answer can only change when nodes move, so cache it against the tree
+  // stamp: during a scroll gesture that is one lookup, not one per frame.
+  const composerByThread = new WeakMap<
+    HTMLElement,
+    { version: number; composer: HTMLElement | null }
+  >();
+  const composerOf = (thread: HTMLElement): HTMLElement | null => {
+    const cached = composerByThread.get(thread);
+    if (cached !== undefined && cached.version === treeVersion) return cached.composer;
+    const composer = thread.querySelector<HTMLElement>(THREAD_COMPOSER_SELECTOR);
+    composerByThread.set(thread, { version: treeVersion, composer });
+    return composer;
+  };
+
+  // Same again for the threads that scroll with the window (phones): finding
+  // them cost a document-wide query plus a descendant query per thread on
+  // every scroll frame.
+  let windowThreads: HTMLElement[] = [];
+  let windowThreadsVersion = -1;
+  const windowScrolledThreads = (): HTMLElement[] => {
+    if (windowThreadsVersion === treeVersion) return windowThreads;
+    windowThreadsVersion = treeVersion;
+    const found = document.querySelectorAll<HTMLElement>(THREAD_WINDOW_SELECTOR);
+    windowThreads = [];
+    for (let index = 0; index < found.length; index += 1) {
+      const thread = found[index];
+      if (!thread.querySelector(THREAD_SCROLL_SELECTOR)) windowThreads.push(thread);
+    }
+    return windowThreads;
+  };
 
   const cancelPendingCollapse = (thread: HTMLElement): void => {
     const timer = pendingCollapseTimers.get(thread);
@@ -98,7 +203,6 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
 
   const setScrollState = (
     thread: HTMLElement,
-    composer: HTMLElement,
     current: number,
     previous: number,
     distanceFromBottom: number,
@@ -125,15 +229,14 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
 
   const update = (scrollArea: HTMLElement): void => {
     const thread = scrollArea.closest<HTMLElement>(THREAD_WINDOW_SELECTOR);
-    const composer = thread?.querySelector<HTMLElement>(THREAD_COMPOSER_SELECTOR);
-    if (!thread || !composer) return;
+    if (!thread || composerOf(thread) === null) return;
 
     const current = scrollArea.scrollTop;
     const previous = lastScrollTop.get(scrollArea) ?? current;
     lastScrollTop.set(scrollArea, current);
     const distanceFromBottom =
       scrollArea.scrollHeight - scrollArea.clientHeight - current;
-    setScrollState(thread, composer, current, previous, distanceFromBottom);
+    setScrollState(thread, current, previous, distanceFromBottom);
   };
 
   const scheduleUpdate = (scrollArea: HTMLElement): void => {
@@ -150,25 +253,18 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
       window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
     const previous = lastWindowScrollTop;
     lastWindowScrollTop = current;
+    // Nothing folds with the window on this page: skip the height reads too.
+    const threads = windowScrolledThreads();
+    if (threads.length === 0) return;
     const documentHeight = Math.max(
       document.documentElement.scrollHeight,
       document.body.scrollHeight,
     );
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
-    for (const thread of Array.from(
-      document.querySelectorAll<HTMLElement>(THREAD_WINDOW_SELECTOR),
-    )) {
-      if (thread.querySelector(THREAD_SCROLL_SELECTOR)) continue;
-      const composer = thread.querySelector<HTMLElement>(THREAD_COMPOSER_SELECTOR);
-      if (!composer) continue;
-      setScrollState(
-        thread,
-        composer,
-        current,
-        previous,
-        documentHeight - viewportHeight - current,
-      );
+    for (const thread of threads) {
+      if (composerOf(thread) === null) continue;
+      setScrollState(thread, current, previous, documentHeight - viewportHeight - current);
     }
   };
 
@@ -219,16 +315,12 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
   // in one interaction. Scanning the entire document for every callback made
   // those interactions compete with rendering; one scan in the next frame
   // keeps newly mounted threads discoverable without extending the input task.
-  const scheduleScan = (): void => {
-    if (pendingScanFrame !== null) return;
-    pendingScanFrame = window.requestAnimationFrame(() => {
-      pendingScanFrame = null;
-      scan();
-    });
-  };
-
-  const observer = new MutationObserver(scheduleScan);
-  observer.observe(document.body, { childList: true, subtree: true });
+  // Only added or removed nodes can change which scroll areas exist — text and
+  // attribute records (a streaming reply) cannot, so they cost nothing here.
+  const unwatch = watchDocument({
+    wants: (record) => record.type === 'childList',
+    scan,
+  });
   document.addEventListener('focusin', onFocusIn, true);
   const onWindowScroll = (): void => {
     if (pendingWindowFrame !== null) return;
@@ -241,7 +333,7 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
   scan();
 
   const dispose = (): void => {
-    observer.disconnect();
+    unwatch();
     document.removeEventListener('focusin', onFocusIn, true);
     window.removeEventListener('scroll', onWindowScroll);
     for (const frame of pendingFrames.values()) window.cancelAnimationFrame(frame);
@@ -251,10 +343,6 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     if (pendingWindowFrame !== null) {
       window.cancelAnimationFrame(pendingWindowFrame);
       pendingWindowFrame = null;
-    }
-    if (pendingScanFrame !== null) {
-      window.cancelAnimationFrame(pendingScanFrame);
-      pendingScanFrame = null;
     }
     for (const [scrollArea, detach] of attached) {
       detach();
@@ -360,7 +448,7 @@ export default definePluginApp((app) => {
   app.contentScripts.register({
     id: "composer-dock",
     mount({ signal }) {
-      return installComposerDock(signal);
+      return installComposerDock(signal, watchDocument);
     },
   });
 

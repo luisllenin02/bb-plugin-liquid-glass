@@ -352,7 +352,10 @@ for (const [mode, css] of Object.entries(palettes)) {
     );
     assert.match(
       css,
-      /html :is\(\[role="menu"\], \[role="listbox"\], \[data-radix-popper-content-wrapper\] > \*\) \{\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\}/,
+      /html :is\(\[role="menu"\]\[role="menu"\], \[role="listbox"\]\[role="listbox"\], \[data-radix-popper-content-wrapper\]\[data-radix-popper-content-wrapper\] > \*\) \{\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\}/,
+      // Doubled attributes are load-bearing: the sheet list above scores two
+      // attributes, so the single-attribute form of this rule lost to it and
+      // every menu kept its blur(32px) layer.
       "popper-positioned popups (menus, tooltips, popovers, selects) must not wait on a backdrop-filter raster",
     );
     assert.doesNotMatch(

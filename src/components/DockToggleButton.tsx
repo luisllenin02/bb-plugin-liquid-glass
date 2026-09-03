@@ -101,7 +101,10 @@ export function DockToggleButton() {
     const hostActions = region.querySelector<HTMLElement>(HOST_ACTIONS_SELECTOR);
     const place = () => {
       const width = hostActions?.offsetWidth ?? 0;
-      slot.style.right = `${HOST_ACTIONS_RIGHT_PX + width + (width > 0 ? GAP_PX : 0)}px`;
+      const right = `${HOST_ACTIONS_RIGHT_PX + width + (width > 0 ? GAP_PX : 0)}px`;
+      // The observer fires for every box change of the host cluster; writing
+      // the same value back would invalidate style for nothing.
+      if (slot.style.right !== right) slot.style.right = right;
     };
     place();
     const resize =

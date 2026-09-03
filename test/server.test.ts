@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -198,6 +198,53 @@ describe("the wallpaper route", () => {
     expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
     expect(response.headers.get("etag")).toMatch(/^"\d+-\d+"$/);
     expect(new Uint8Array(await response.arrayBuffer())).toHaveLength(4);
+  });
+
+  it("caches the file body across requests and busts the cache when it changes", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "liquid-glass-"));
+    const file = join(dir, "wall.png");
+    await writeFile(file, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    await harness.behavior.callRpc("setAppearance", { wallpaperPath: file });
+
+    const first = await harness.behavior.fetchHttp("GET", "/wallpaper");
+    const firstBody = new Uint8Array(await first.arrayBuffer());
+    const etag = first.headers.get("etag");
+    expect(firstBody).toHaveLength(4);
+    expect(etag).toMatch(/^"\d+-\d+"$/);
+
+    const second = await harness.behavior.fetchHttp("GET", "/wallpaper");
+    expect(new Uint8Array(await second.arrayBuffer())).toEqual(firstBody);
+    expect(second.headers.get("etag")).toBe(etag);
+
+    await writeFile(file, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff]));
+    const future = new Date(Date.now() + 5000);
+    await utimes(file, future, future);
+
+    const third = await harness.behavior.fetchHttp("GET", "/wallpaper");
+    expect(new Uint8Array(await third.arrayBuffer())).toHaveLength(5);
+    expect(third.headers.get("etag")).not.toBe(etag);
+  });
+
+  it("returns 304 with no body when If-None-Match matches the current etag", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "liquid-glass-"));
+    const file = join(dir, "wall.png");
+    await writeFile(file, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    await harness.behavior.callRpc("setAppearance", { wallpaperPath: file });
+
+    const first = await harness.behavior.fetchHttp("GET", "/wallpaper");
+    const etag = first.headers.get("etag")!;
+
+    const revalidated = await harness.behavior.fetchHttp("GET", "/wallpaper", {
+      headers: { "if-none-match": etag },
+    });
+    expect(revalidated.status).toBe(304);
+    expect(revalidated.headers.get("etag")).toBe(etag);
+    expect(await revalidated.text()).toBe("");
+
+    const stale = await harness.behavior.fetchHttp("GET", "/wallpaper", {
+      headers: { "if-none-match": '"stale-etag"' },
+    });
+    expect(stale.status).toBe(200);
   });
 
   it("ignores a path supplied as a query parameter", async () => {
