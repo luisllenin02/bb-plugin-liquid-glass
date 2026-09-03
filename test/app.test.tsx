@@ -305,6 +305,7 @@ describe("the liquid-glass-vars content script", () => {
     expect(app.contentScripts.map((script) => script.id)).toEqual([
       "liquid-glass-vars",
       "thread-composer-scroll-state",
+      "composer-dock",
     ]);
   });
 

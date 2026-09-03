@@ -1,10 +1,10 @@
 /**
  * Liquid Glass — frontend half.
  *
- * Two registrations: a content script that writes the `--lg-*` custom
+ * Registrations: a content script that writes the `--lg-*` custom
  * properties onto `document.documentElement` while one of this plugin's
- * palettes is active, and the Settings → Liquid Glass section that changes
- * them.
+ * palettes is active, the composer scroll and dock content scripts, and the
+ * Settings → Liquid Glass section that changes the appearance.
  */
 import { definePluginApp } from "@get-bb/plugin-sdk/app";
 
@@ -17,6 +17,7 @@ import {
 } from "./src/appearance.js";
 import { APPEARANCE_EVENT } from "./src/theme-mode.js";
 import { AppearanceSection } from "./src/components/AppearanceSection.js";
+import { installComposerDock } from "./src/composer-dock.js";
 
 /**
  * The host writes the active palette's CSS into this `<style>` element
@@ -349,6 +350,15 @@ export default definePluginApp((app) => {
     id: "thread-composer-scroll-state",
     mount({ signal }) {
       return installThreadComposerScrollBehavior(signal);
+    },
+  });
+
+  // Minimize the goal/todo/workflow/context cards above the prompt box into a
+  // one-line strip of live status pills; the choice persists per browser.
+  app.contentScripts.register({
+    id: "composer-dock",
+    mount({ signal }) {
+      return installComposerDock(signal);
     },
   });
 
