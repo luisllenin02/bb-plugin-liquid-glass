@@ -47,7 +47,7 @@ test("manifest contributes both Liquid Glass palettes plus a server and an app",
   }
   assert.equal(manifest.engines.bb, ">=0.41");
   assert.equal(manifest.engines.bbPluginSdk, ">=0.4.8");
-  assert.equal(manifest.version, "0.5.6");
+  assert.equal(manifest.version, "0.5.7");
   assert.ok(manifest.dependencies.zod, "zod must be a runtime dependency");
   for (const dependency of ["clsx", "tailwind-merge"]) {
     assert.ok(
@@ -309,6 +309,10 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.doesNotMatch(chrome, /--glass-overlay-a/);
     assert.match(css, /\[data-promptbox\][\s\S]*min\(1, calc\(var\(--lg-chrome-a, 0\.72\) \+ 0\.12\)\)/);
     assert.match(css, /\[data-promptbox\] \{[^}]*background-color:[^}]*\}/);
+    assert.match(
+      css,
+      /:is\(\[role="tooltip"\], \[data-radix-popper-content-wrapper\] > \.bg-primary\) \{\n\s*color: var\(--foreground\);\n\}/,
+    );
     assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*background-image: none/);
     for (const token of ["--card", "--popover", "--surface-raised"]) {
       assert.match(decls.get(token), /var\(--glass-overlay-a\)/);
