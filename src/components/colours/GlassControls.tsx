@@ -73,16 +73,6 @@ export function GlassControls({
             onChange={(percent) => onChange({ paneOpacity: percent / 100 })}
           />
         </Row>
-        <Row label="Pane blur" description="Wallpaper blur behind the main pane.">
-          <Slider
-            label="Pane blur"
-            value={Math.round(appearance.paneBlur)}
-            display={String(Math.round(appearance.paneBlur))}
-            min={RANGES.paneBlur.min}
-            max={RANGES.paneBlur.max}
-            onChange={(paneBlur) => onChange({ paneBlur })}
-          />
-        </Row>
       </fieldset>
       <h3 className="pt-2 text-sm font-medium text-foreground">Sheets and chrome</h3>
       <Row label="Overlay opacity" description="Keeps menus and sheets unreadable through the glass.">

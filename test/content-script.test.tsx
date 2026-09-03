@@ -107,7 +107,36 @@ describe("the liquid-glass-vars content script", () => {
 });
 
 describe("the thread-composer-scroll-state content script", () => {
-  it("collapses away from the latest event and expands at the bottom or on focus", async () => {
+  it("coalesces a burst of DOM mutations into one thread scan", async () => {
+    vi.useFakeTimers();
+    const mounted = await mount();
+    await vi.advanceTimersByTimeAsync(0);
+    const querySelectorAll = vi.spyOn(document, "querySelectorAll");
+    querySelectorAll.mockClear();
+
+    const added: HTMLElement[] = [];
+    for (let index = 0; index < 12; index += 1) {
+      const element = document.createElement("div");
+      added.push(element);
+      document.body.append(element);
+      // Deliver a distinct observer callback for each mutation. The content
+      // script must still schedule only one complete DOM scan.
+      await Promise.resolve();
+    }
+
+    await vi.advanceTimersByTimeAsync(20);
+    expect(
+      querySelectorAll.mock.calls.filter(
+        ([selector]) => selector === "[data-thread-window] .thread-scrollbar",
+      ),
+    ).toHaveLength(1);
+
+    added.forEach((element) => element.remove());
+    await mounted.lifecycle.dispose();
+    disposeMounted = null;
+  });
+
+  it("collapses shortly after the first upward scroll frame and expands at the bottom or on focus", async () => {
     const thread = document.createElement("section");
     thread.setAttribute("data-thread-window", "");
     const scrollArea = document.createElement("div");
@@ -135,6 +164,8 @@ describe("the thread-composer-scroll-state content script", () => {
     scrollTop = 300;
     scrollArea.dispatchEvent(new Event("scroll"));
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(false);
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 60));
     expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(true);
 
     scrollTop = 500;

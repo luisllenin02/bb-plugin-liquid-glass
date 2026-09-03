@@ -54,7 +54,6 @@ describe("the Liquid Glass settings section", () => {
       "Saturation",
       "Main pane glass",
       "Pane opacity",
-      "Pane blur",
       "Overlay opacity",
       "Chrome opacity",
       "Chrome fade",
@@ -79,7 +78,6 @@ describe("the Liquid Glass settings section", () => {
     const group = await slot.findByLabelText("Main pane glass controls");
     expect(group.hasAttribute("disabled")).toBe(true);
     expect((await slot.findByLabelText("Pane opacity")).matches(":disabled")).toBe(true);
-    expect((await slot.findByLabelText("Pane blur")).matches(":disabled")).toBe(true);
     slot.lifecycle.unmount();
   });
 
@@ -318,7 +316,6 @@ describe("the liquid-glass-vars content script", () => {
     const root = document.documentElement;
     await waitFor(() => expect(root.style.getPropertyValue("--lg-blur")).toBe("40px"));
     expect(root.style.getPropertyValue("--lg-pane-a")).toBe("0.85");
-    expect(root.style.getPropertyValue("--lg-pane-blur")).toBe("24px");
     expect(root.style.getPropertyValue("--lg-overlay-a")).toBe("0.94");
     expect(root.style.getPropertyValue("--lg-wp-brightness")).toBe("1");
     expect(root.style.getPropertyValue("--lg-wp-blur")).toBe("0px");
@@ -331,7 +328,6 @@ describe("the liquid-glass-vars content script", () => {
 
     await mounted.lifecycle.dispose();
     expect(root.style.getPropertyValue("--lg-blur")).toBe("");
-    expect(root.style.getPropertyValue("--lg-pane-blur")).toBe("");
     expect(root.style.getPropertyValue("--lg-overlay-a")).toBe("");
     expect(root.style.getPropertyValue("--lg-wp-brightness")).toBe("");
     expect(root.style.getPropertyValue("--lg-vibrancy")).toBe("");

@@ -107,7 +107,6 @@ for (const [mode, css] of Object.entries(palettes)) {
       "24px",
       "blur defaults to monocode's 24px",
     );
-    assert.equal(knobDefault(css, "--lg-pane-blur"), "24px");
     assert.equal(knobDefault(css, "--lg-wp-brightness"), "1");
     assert.equal(knobDefault(css, "--lg-wp-blur"), "0px");
     assert.equal(knobDefault(css, "--lg-wp-sat"), "1.1");
@@ -253,9 +252,10 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(css, /var\(--lg-wallpaper-custom, var\(--glass-aurora\)\)/);
     assert.match(css, /html\[data-lg-pane-glass="on"\]/);
     assert.match(css, /html\[data-lg-pane-glass="off"\]/);
-    assert.match(
+    assert.doesNotMatch(
       css,
-      /html\[data-lg-pane-glass="on"\] main\[data-sidebar="inset"\] \{[\s\S]*?blur\(var\(--lg-pane-blur, 24px\)\) saturate\(1\.2\)/,
+      /html\[data-lg-pane-glass="on"\] main\[data-sidebar="inset"\] \{/,
+      "split panes must not allocate a full-height backdrop-filter layer",
     );
     assert.match(css, /@supports not \(backdrop-filter: blur\(1px\)\)/);
   });
@@ -320,6 +320,11 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(css, /html \[data-thread-window\] \.bg-background:has\(\.chat-prompt-box\)/);
     assert.match(css, /html \[data-thread-window\] \.bg-background:has\(\[data-promptbox-shell\]\)/);
     assert.match(css, /html \[data-thread-window\] \.chat-prompt-box/);
+    assert.match(
+      css,
+      /@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?interpolate-size: allow-keywords;[\s\S]*?height 120ms cubic-bezier\(0\.2, 0, 0, 1\)/,
+      "composer compaction must ease automatic height changes without overriding reduced motion",
+    );
     assert.match(css, /html \[data-thread-window\] \.sticky\.bottom-0 > \.bg-background/);
     assert.match(css, /html \[data-thread-window\] \.sticky\.bottom-0 \[data-overflow-fade="above"\]/);
     assert.match(css, /background-color: transparent !important/);
@@ -327,6 +332,10 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(
       css,
       /:is\(\[role="tooltip"\], \[data-radix-popper-content-wrapper\] > \.bg-primary\) \{\n\s*color: var\(--foreground\);\n\}/,
+    );
+    assert.match(
+      css,
+      /html :is\(\[role="menu"\], \[role="listbox"\]\) \{\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\}/,
     );
     assert.match(
       css,
@@ -372,14 +381,17 @@ for (const [mode, css] of Object.entries(palettes)) {
     }
   });
 
-  test(`${mode} palette frosts the glass panes at the blur knob`, () => {
-    for (const selector of [".bg-sidebar", ".bg-popover", ".bg-card"]) {
-      assert.ok(css.includes(selector), `${selector} must carry the frosted treatment`);
-    }
+  test(`${mode} palette frosts panes without compositing every nested card`, () => {
+    assert.ok(css.includes(".bg-sidebar"), ".bg-sidebar must carry the frosted treatment");
     const blurs = [
       ...css.matchAll(/backdrop-filter: blur\(var\(--lg-blur, 24px\)\) saturate\(1\.3\)/g),
     ];
-    assert.ok(blurs.length >= 4, "both -webkit- and standard blurs must read the knob");
+    assert.ok(blurs.length >= 4, "pane and sticky blur must read the knob");
+    assert.doesNotMatch(
+      css,
+      /\.bg-popover,\n\.bg-card \{[\s\S]*backdrop-filter/,
+      "nested cards must not allocate individual backdrop-filter layers",
+    );
     assert.match(css, /inset 0 1px 0 hsl\(0 0% 100% \/ 0\.06\)/);
     const sidebar = colorOf(decls, "--sidebar");
     assert.equal(sidebar.alpha, 0.85, "the sidebar defaults to monocode's 0.85");

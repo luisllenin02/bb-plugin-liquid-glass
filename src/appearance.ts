@@ -281,9 +281,6 @@ export function resolveVars(
       ),
     ),
     "--lg-blur": `${Math.round(clamp(appearance.blur, RANGES.blur.min, RANGES.blur.max))}px`,
-    "--lg-pane-blur": `${Math.round(
-      clamp(appearance.paneBlur, RANGES.paneBlur.min, RANGES.paneBlur.max),
-    )}px`,
     "--lg-overlay-a": String(
       clamp(appearance.overlayOpacity, RANGES.overlayOpacity.min, RANGES.overlayOpacity.max),
     ),
@@ -351,7 +348,6 @@ export const MANAGED_VARS = [
   "--lg-sidebar-a",
   "--lg-pane-a",
   "--lg-blur",
-  "--lg-pane-blur",
   "--lg-overlay-a",
   "--lg-chrome-a",
   "--lg-chrome-fade",

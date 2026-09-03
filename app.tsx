@@ -58,6 +58,7 @@ const THREAD_SCROLL_SELECTOR = '[data-thread-window] .thread-scrollbar';
 const THREAD_WINDOW_SELECTOR = '[data-thread-window]';
 const THREAD_COMPOSER_SELECTOR = '[data-follow-up-composer]';
 const THREAD_COMPOSER_COLLAPSED_ATTRIBUTE = 'data-lg-thread-composer-collapsed';
+const COMPOSER_COLLAPSE_DELAY_MS = 48;
 
 /**
  * The host already owns the compact follow-up composer presentation. Bridge
@@ -68,9 +69,32 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
   const attached = new Map<HTMLElement, () => void>();
   const lastScrollTop = new WeakMap<HTMLElement, number>();
   const pendingFrames = new Map<HTMLElement, number>();
+  const pendingCollapseTimers = new Map<HTMLElement, number>();
   let pendingWindowFrame: number | null = null;
+  let pendingScanFrame: number | null = null;
   let lastWindowScrollTop =
     window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+
+  const cancelPendingCollapse = (thread: HTMLElement): void => {
+    const timer = pendingCollapseTimers.get(thread);
+    if (timer === undefined) return;
+    window.clearTimeout(timer);
+    pendingCollapseTimers.delete(thread);
+  };
+
+  const scheduleCollapse = (thread: HTMLElement, composer: HTMLElement): void => {
+    // Do not rearm on every scroll event. One brief guard gives the browser a
+    // frame to settle its scroll position, while still responding to the first
+    // upward movement rather than the end of the gesture.
+    if (pendingCollapseTimers.has(thread)) return;
+    const timer = window.setTimeout(() => {
+      pendingCollapseTimers.delete(thread);
+      if (!composer.contains(document.activeElement)) {
+        thread.setAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE, '');
+      }
+    }, COMPOSER_COLLAPSE_DELAY_MS);
+    pendingCollapseTimers.set(thread, timer);
+  };
 
   const setScrollState = (
     thread: HTMLElement,
@@ -80,17 +104,19 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     distanceFromBottom: number,
   ): void => {
     if (composer.contains(document.activeElement) || distanceFromBottom <= 8) {
+      cancelPendingCollapse(thread);
       if (thread.hasAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE)) {
         thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
       }
       return;
     }
 
-    if (
-      current < previous - 2 &&
-      !thread.hasAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE)
-    ) {
-      thread.setAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE, '');
+    if (current < previous - 2) {
+      if (!thread.hasAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE)) {
+        scheduleCollapse(thread, composer);
+      }
+    } else if (current > previous + 2) {
+      cancelPendingCollapse(thread);
     }
   };
 
@@ -167,22 +193,38 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
       if (currentAreas.has(scrollArea)) continue;
       detach();
       attached.delete(scrollArea);
-      scrollArea
-        .closest<HTMLElement>('[data-thread-window]')
-        ?.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+      const thread = scrollArea.closest<HTMLElement>(THREAD_WINDOW_SELECTOR);
+      if (thread) {
+        cancelPendingCollapse(thread);
+        thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+      }
     }
   };
 
   const onFocusIn = (event: FocusEvent): void => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    target
+    const thread = target
       .closest<HTMLElement>(THREAD_COMPOSER_SELECTOR)
-      ?.closest<HTMLElement>('[data-thread-window]')
-      ?.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+      ?.closest<HTMLElement>(THREAD_WINDOW_SELECTOR);
+    if (!thread) return;
+    cancelPendingCollapse(thread);
+    thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
   };
 
-  const observer = new MutationObserver(scan);
+  // Panel activation and portalled pickers can produce dozens of DOM mutations
+  // in one interaction. Scanning the entire document for every callback made
+  // those interactions compete with rendering; one scan in the next frame
+  // keeps newly mounted threads discoverable without extending the input task.
+  const scheduleScan = (): void => {
+    if (pendingScanFrame !== null) return;
+    pendingScanFrame = window.requestAnimationFrame(() => {
+      pendingScanFrame = null;
+      scan();
+    });
+  };
+
+  const observer = new MutationObserver(scheduleScan);
   observer.observe(document.body, { childList: true, subtree: true });
   document.addEventListener('focusin', onFocusIn, true);
   const onWindowScroll = (): void => {
@@ -201,14 +243,20 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     window.removeEventListener('scroll', onWindowScroll);
     for (const frame of pendingFrames.values()) window.cancelAnimationFrame(frame);
     pendingFrames.clear();
+    for (const timer of pendingCollapseTimers.values()) window.clearTimeout(timer);
+    pendingCollapseTimers.clear();
     if (pendingWindowFrame !== null) {
       window.cancelAnimationFrame(pendingWindowFrame);
       pendingWindowFrame = null;
     }
+    if (pendingScanFrame !== null) {
+      window.cancelAnimationFrame(pendingScanFrame);
+      pendingScanFrame = null;
+    }
     for (const [scrollArea, detach] of attached) {
       detach();
       scrollArea
-        .closest<HTMLElement>('[data-thread-window]')
+        .closest<HTMLElement>(THREAD_WINDOW_SELECTOR)
         ?.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
     }
     attached.clear();
