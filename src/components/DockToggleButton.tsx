@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   COMPACT_MEDIA,
@@ -9,12 +10,16 @@ import {
 } from "../composer-dock.js";
 import { cn } from "../lib/utils.js";
 
-/** Chevron-up-to-line: fold the cards up into pills. */
-const FOLD =
-  "M3 3.5h10M8 12.5V6.5M5 9.5l3-3 3 3";
-/** Chevron-down-from-line: unfold the pills back into cards. */
-const UNFOLD =
-  "M3 3.5h10M8 6.5v6M5 9.5l3 3 3-3";
+/** Double chevron up: fold the cards into pills. Same 24-grid and stroke as the host's single chevron. */
+const FOLD = "M18 13s-4.4 5-6 5-6-5-6-5M18 6s-4.4 5-6 5-6-5-6-5";
+/** Double chevron down: unfold the pills into cards. */
+const UNFOLD = "M6 11s4.4-5 6-5 6 5 6 5M6 18s4.4-5 6-5 6 5 6 5";
+
+const HOST_ACTIONS_SELECTOR =
+  "[data-promptbox-input-region] > [data-promptbox-standard-actions][data-promptbox-expanded-only]";
+/** The host pins its chevron cluster at right 13px; sit just left of it. */
+const HOST_ACTIONS_RIGHT_PX = 13;
+const GAP_PX = 2;
 
 function compactNow(): boolean {
   const mode = readDockMode();
@@ -24,14 +29,17 @@ function compactNow(): boolean {
 
 /**
  * Composer action: folds the status cards above the prompt box into pills
- * and back, for this device. Sits in the prompt box's own action row, so it
- * never competes with the cards for space. Renders nothing while the
- * composer has no cards to fold.
+ * and back, for this device. It renders nothing in the action row; instead
+ * it portals a ghost glyph into the prompt box's top-right corner, beside the
+ * host's collapse chevron, marked `data-promptbox-expanded-only` so it shows
+ * and hides exactly when that chevron does. Hidden while the composer has no
+ * cards to fold.
  */
 export function DockToggleButton() {
   const rootRef = useRef<HTMLSpanElement>(null);
   const [pills, setPills] = useState(() => compactNow());
   const [cards, setCards] = useState(false);
+  const [mount, setMount] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const sync = () => setPills(compactNow());
@@ -59,38 +67,74 @@ export function DockToggleButton() {
     return () => observer.disconnect();
   }, []);
 
-  if (!cards) return <span ref={rootRef} hidden />;
+  // Own a small absolutely positioned slot in the prompt box's input region,
+  // left of the host's chevron cluster, sized from that cluster's width.
+  useEffect(() => {
+    const promptbox = rootRef.current?.closest<HTMLElement>("[data-promptbox]");
+    const region = promptbox?.querySelector<HTMLElement>("[data-promptbox-input-region]");
+    if (!region) return;
+    const slot = document.createElement("div");
+    slot.setAttribute("data-lg-dock-glyph", "");
+    slot.setAttribute("data-promptbox-expanded-only", "");
+    slot.className = "absolute top-2 z-20 flex items-center";
+    region.append(slot);
+
+    const hostActions = region.querySelector<HTMLElement>(HOST_ACTIONS_SELECTOR);
+    const place = () => {
+      const width = hostActions?.offsetWidth ?? 0;
+      slot.style.right = `${HOST_ACTIONS_RIGHT_PX + width + (width > 0 ? GAP_PX : 0)}px`;
+    };
+    place();
+    const resize =
+      hostActions && typeof ResizeObserver === "function" ? new ResizeObserver(place) : null;
+    if (hostActions && resize) resize.observe(hostActions);
+    setMount(slot);
+    return () => {
+      resize?.disconnect();
+      slot.remove();
+      setMount(null);
+    };
+  }, []);
 
   const label = pills ? "Show status cards" : "Fold status cards into pills";
+  const glyph =
+    mount && cards
+      ? createPortal(
+          <button
+            type="button"
+            aria-label={label}
+            aria-pressed={pills}
+            title={label}
+            onClick={() => writeDockMode(pills ? "cards" : "pills")}
+            className={cn(
+              "inline-flex h-8 w-6 cursor-pointer items-center justify-center rounded-md",
+              "text-muted-foreground transition-colors duration-150 hover:text-foreground",
+              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            )}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className="size-3.5"
+            >
+              <path d={pills ? UNFOLD : FOLD} />
+            </svg>
+          </button>,
+          mount,
+        )
+      : null;
+
   return (
-    <span ref={rootRef} className="inline-flex">
-      <button
-        type="button"
-        aria-label={label}
-        aria-pressed={pills}
-        title={label}
-        onClick={() => writeDockMode(pills ? "cards" : "pills")}
-        className={cn(
-          "inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border",
-          "text-muted-foreground transition-colors hover:bg-state-hover hover:text-foreground",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-          "max-md:pointer-coarse:h-10 max-md:pointer-coarse:w-9",
-          pills && "bg-state-active text-foreground",
-        )}
-      >
-        <svg
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          className="size-4"
-        >
-          <path d={pills ? UNFOLD : FOLD} />
-        </svg>
-      </button>
+    <span ref={rootRef} hidden>
+      {glyph}
     </span>
   );
 }
