@@ -382,6 +382,20 @@ html [data-follow-up-composer-footer] {
   backdrop-filter: none;
   box-shadow: none;
 }
+/* The hosted thread wraps its follow-up composer in a PageShell footer that
+   carries the host's `bg-background`, plus an above-footer OverflowFade. Clear
+   both layers so the running-thread dock does not form a second smoke band. */
+html [data-thread-window] :has(> .chat-prompt-box) {
+  background-color: transparent;
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+html [data-thread-window] :has(> .chat-prompt-box) > [data-overflow-fade="above"] {
+  background-image: none;
+  opacity: 0;
+}
 @media (max-width: 767px), (pointer: coarse) {
   /* The host keeps the mobile sidebar panel fixed under the left edge of the
      page at all times (z-0, the page slides right to reveal it); through the
