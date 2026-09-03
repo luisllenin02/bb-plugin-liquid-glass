@@ -54,6 +54,94 @@ function clearVars(): void {
   for (const name of MANAGED_ATTRIBUTES) root.removeAttribute(name);
 }
 
+const THREAD_SCROLL_SELECTOR = '[data-thread-window] .thread-scrollbar';
+const THREAD_COMPOSER_SELECTOR = '[data-follow-up-composer]';
+const THREAD_COMPOSER_COLLAPSED_ATTRIBUTE = 'data-lg-thread-composer-collapsed';
+
+/**
+ * The host already owns the compact follow-up composer presentation. Bridge
+ * the thread's scroll position to that presentation instead of duplicating
+ * its layout rules in the theme.
+ */
+function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
+  const attached = new Map<HTMLElement, () => void>();
+  const lastScrollTop = new WeakMap<HTMLElement, number>();
+
+  const update = (scrollArea: HTMLElement): void => {
+    const thread = scrollArea.closest<HTMLElement>('[data-thread-window]');
+    const composer = thread?.querySelector<HTMLElement>(THREAD_COMPOSER_SELECTOR);
+    if (!thread || !composer) return;
+
+    const current = scrollArea.scrollTop;
+    const previous = lastScrollTop.get(scrollArea) ?? current;
+    lastScrollTop.set(scrollArea, current);
+    const distanceFromBottom =
+      scrollArea.scrollHeight - scrollArea.clientHeight - current;
+
+    if (composer.contains(document.activeElement) || distanceFromBottom <= 8) {
+      thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+      return;
+    }
+
+    if (current < previous - 2) {
+      thread.setAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE, '');
+    }
+  };
+
+  const scan = (): void => {
+    const currentAreas = new Set(
+      Array.from(document.querySelectorAll<HTMLElement>(THREAD_SCROLL_SELECTOR)),
+    );
+
+    for (const scrollArea of currentAreas) {
+      if (attached.has(scrollArea)) continue;
+      lastScrollTop.set(scrollArea, scrollArea.scrollTop);
+      const onScroll = () => update(scrollArea);
+      scrollArea.addEventListener('scroll', onScroll, { passive: true });
+      attached.set(scrollArea, () =>
+        scrollArea.removeEventListener('scroll', onScroll),
+      );
+    }
+
+    for (const [scrollArea, detach] of attached) {
+      if (currentAreas.has(scrollArea)) continue;
+      detach();
+      attached.delete(scrollArea);
+      scrollArea
+        .closest<HTMLElement>('[data-thread-window]')
+        ?.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+    }
+  };
+
+  const onFocusIn = (event: FocusEvent): void => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    target
+      .closest<HTMLElement>(THREAD_COMPOSER_SELECTOR)
+      ?.closest<HTMLElement>('[data-thread-window]')
+      ?.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+  };
+
+  const observer = new MutationObserver(scan);
+  observer.observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('focusin', onFocusIn, true);
+  scan();
+
+  const dispose = (): void => {
+    observer.disconnect();
+    document.removeEventListener('focusin', onFocusIn, true);
+    for (const [scrollArea, detach] of attached) {
+      detach();
+      scrollArea
+        .closest<HTMLElement>('[data-thread-window]')
+        ?.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+    }
+    attached.clear();
+  };
+  signal.addEventListener('abort', dispose, { once: true });
+  return dispose;
+}
+
 export default definePluginApp((app) => {
   app.contentScripts.register({
     id: "liquid-glass-vars",
@@ -131,6 +219,13 @@ export default definePluginApp((app) => {
         headObserver.disconnect();
         clearVars();
       };
+    },
+  });
+
+  app.contentScripts.register({
+    id: "thread-composer-scroll-state",
+    mount({ signal }) {
+      return installThreadComposerScrollBehavior(signal);
     },
   });
 

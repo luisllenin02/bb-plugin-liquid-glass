@@ -304,7 +304,10 @@ describe("the liquid-glass-vars content script", () => {
   });
 
   it("is registered", () => {
-    expect(app.contentScripts.map((script) => script.id)).toEqual(["liquid-glass-vars"]);
+    expect(app.contentScripts.map((script) => script.id)).toEqual([
+      "liquid-glass-vars",
+      "thread-composer-scroll-state",
+    ]);
   });
 
   it("paints the vars for our palette and removes them on dispose", async () => {

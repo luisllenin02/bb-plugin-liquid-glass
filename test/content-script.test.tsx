@@ -105,3 +105,48 @@ describe("the liquid-glass-vars content script", () => {
     disposeMounted = null;
   });
 });
+
+describe("the thread-composer-scroll-state content script", () => {
+  it("collapses away from the latest event and expands at the bottom or on focus", async () => {
+    const thread = document.createElement("section");
+    thread.setAttribute("data-thread-window", "");
+    const scrollArea = document.createElement("div");
+    scrollArea.className = "thread-scrollbar";
+    const composer = document.createElement("div");
+    composer.setAttribute("data-follow-up-composer", "");
+    composer.tabIndex = 0;
+    thread.append(scrollArea, composer);
+    document.body.append(thread);
+
+    let scrollTop = 500;
+    Object.defineProperties(scrollArea, {
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+      scrollHeight: { configurable: true, value: 1000 },
+      clientHeight: { configurable: true, value: 500 },
+    });
+
+    const mounted = await mount();
+    scrollTop = 300;
+    scrollArea.dispatchEvent(new Event("scroll"));
+    expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(true);
+
+    scrollTop = 500;
+    scrollArea.dispatchEvent(new Event("scroll"));
+    expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(false);
+
+    thread.setAttribute("data-lg-thread-composer-collapsed", "");
+    composer.focus();
+    expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(false);
+
+    await mounted.lifecycle.dispose();
+    disposeMounted = null;
+    expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(false);
+    thread.remove();
+  });
+});

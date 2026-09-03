@@ -409,6 +409,21 @@ html [data-thread-window] [data-follow-up-composer-footer] {
   backdrop-filter: none !important;
   box-shadow: none !important;
 }
+/* Running-thread prompt cards must be as opaque as the goal/todo/queue cards
+   above them. Otherwise timeline text paints through the old low-opacity
+   chrome token and becomes unreadable. */
+html [data-thread-window] [data-promptbox] {
+  background-color: var(--surface-raised-solid) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* Reuse the host's existing compact composer rules while the reader scrolls
+   away from the latest event. Focus and the bottom edge remove this flag. */
+html [data-thread-window][data-lg-thread-composer-collapsed]
+  [data-follow-up-composer] {
+  --follow-up-composer-container-compact: true !important;
+}
 /* The production footer is mounted as the direct child of a sticky dock. Use
    that stable relationship as a final escape hatch: it avoids relying on
    ancestor `:has()` matching in embedded Chromium shells and clears the host
