@@ -380,33 +380,32 @@ html [data-follow-up-composer-footer] {
   backdrop-filter: none;
   box-shadow: none;
 }
-/* The hosted thread wraps its follow-up composer in a PageShell footer that
-   carries the host's `bg-background`, plus an above-footer OverflowFade. Clear
-   both layers so the running-thread dock does not form a second smoke band. */
-html [data-thread-window] :has(> .chat-prompt-box) {
-  background-color: transparent;
-  background-image: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  box-shadow: none;
+/* The host's running-thread footer is a `bg-background` wrapper around the
+   promptbox, with a sibling overflow fade. Clear that exact wrapper with
+   important precedence: the host utility is loaded after plugin CSS in some
+   shells, and the original chrome rules must never repaint this dock. */
+html [data-thread-window] .bg-background:has(.chat-prompt-box),
+html [data-thread-window] .bg-background:has([data-promptbox-shell]),
+html [data-thread-window] .chat-prompt-box {
+  background-color: transparent !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
 }
-html [data-thread-window] :has(> .chat-prompt-box) > [data-overflow-fade="above"] {
-  background-image: none;
-  opacity: 0;
+html [data-thread-window] .bg-background:has(.chat-prompt-box) > [data-overflow-fade="above"],
+html [data-thread-window] .bg-background:has([data-promptbox-shell]) > [data-overflow-fade="above"] {
+  display: none !important;
 }
-/* The running-thread footer has a second wrapper inside PageShell. It also
-   owns an above fade, but its promptbox shell is nested one level deeper, so
-   the original `.chat-prompt-box` seam does not reach it. */
-html [data-thread-window] :has(> [data-overflow-fade="above"]):has([data-promptbox-shell]) {
-  background-color: transparent;
-  background-image: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  box-shadow: none;
-}
-html [data-thread-window] :has(> [data-overflow-fade="above"]):has([data-promptbox-shell]) > [data-overflow-fade="above"] {
-  background-image: none;
-  opacity: 0;
+/* Banners and the follow-up footer are part of this same dock; remove the
+   earlier generic chrome gradient from their own seams as well. */
+html [data-thread-window] [data-app-composer],
+html [data-thread-window] [data-follow-up-composer-footer] {
+  background-color: transparent !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 @media (max-width: 767px), (pointer: coarse) {
   /* The host keeps the mobile sidebar panel fixed under the left edge of the

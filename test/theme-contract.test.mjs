@@ -47,7 +47,7 @@ test("manifest contributes both Liquid Glass palettes plus a server and an app",
   }
   assert.equal(manifest.engines.bb, ">=0.41");
   assert.equal(manifest.engines.bbPluginSdk, ">=0.4.8");
-  assert.equal(manifest.version, "0.5.12");
+  assert.equal(manifest.version, "0.5.13");
   assert.ok(manifest.dependencies.zod, "zod must be a runtime dependency");
   for (const dependency of ["clsx", "tailwind-merge"]) {
     assert.ok(
@@ -300,7 +300,7 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(css, /\[data-testid="route-loading-skeleton"\] \{ background-color: var\(--canvas\); \}/);
     assert.match(css, /@media \(max-width: 767px\), \(pointer: coarse\)/);
     assert.match(css, /data-lg-compact-solid="on"[\s\S]*?\/ 0\.96\)/);
-    const chrome = css.slice(css.indexOf(":is(header.bg-surface-scrim"), css.indexOf("@media (max-width: 767px)"));
+    const chrome = css.slice(css.indexOf(":is(header.bg-surface-scrim"), css.indexOf("/* `data-promptbox-shell`"));
     assert.match(chrome, /backdrop-filter: blur\(var\(--lg-chrome-blur, 20px\)\)/);
     assert.match(chrome, /:is\(header\.bg-surface-scrim, \[data-secondary-panel-shelf\]\) \{[\s\S]*?linear-gradient\(to bottom,[\s\S]*?var\(--lg-chrome-fade, 40px\)[\s\S]*?box-shadow: inset 0 -1px 0/);
     assert.match(chrome, /:is\(\[data-testid="root-compose-compact-composer"\],[\s\S]*?\) \{[\s\S]*?linear-gradient\(to top,[\s\S]*?var\(--lg-chrome-fade, 40px\)[\s\S]*?box-shadow: inset 0 1px 0/);
@@ -317,22 +317,11 @@ for (const [mode, css] of Object.entries(palettes)) {
       css,
       /html \[data-follow-up-composer-footer\] \{\n\s*background-color: transparent;\n\s*background-image: none;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
     );
-    assert.match(
-      css,
-      /html \[data-thread-window\] :has\(> \.chat-prompt-box\) \{\n\s*background-color: transparent;\n\s*background-image: none;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
-    );
-    assert.match(
-      css,
-      /html \[data-thread-window\] :has\(> \.chat-prompt-box\) > \[data-overflow-fade="above"\] \{\n\s*background-image: none;\n\s*opacity: 0;\n\}/,
-    );
-    assert.match(
-      css,
-      /html \[data-thread-window\] :has\(> \[data-overflow-fade="above"\]\):has\(\[data-promptbox-shell\]\) \{\n\s*background-color: transparent;\n\s*background-image: none;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
-    );
-    assert.match(
-      css,
-      /html \[data-thread-window\] :has\(> \[data-overflow-fade="above"\]\):has\(\[data-promptbox-shell\]\) > \[data-overflow-fade="above"\] \{\n\s*background-image: none;\n\s*opacity: 0;\n\}/,
-    );
+    assert.match(css, /html \[data-thread-window\] \.bg-background:has\(\.chat-prompt-box\)/);
+    assert.match(css, /html \[data-thread-window\] \.bg-background:has\(\[data-promptbox-shell\]\)/);
+    assert.match(css, /html \[data-thread-window\] \.chat-prompt-box/);
+    assert.match(css, /background-color: transparent !important/);
+    assert.match(css, /display: none !important/);
     assert.match(
       css,
       /:is\(\[role="tooltip"\], \[data-radix-popper-content-wrapper\] > \.bg-primary\) \{\n\s*color: var\(--foreground\);\n\}/,
