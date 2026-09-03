@@ -18,6 +18,8 @@ export const DOCK_MODE_EVENT = "liquid-glass:composer-dock-change";
 export const DOCK_COLLAPSED_ATTRIBUTE = "data-lg-dock-collapsed";
 export const DOCK_HIDDEN_ATTRIBUTE = "data-lg-dock-hidden";
 export const DOCK_EMPTY_ATTRIBUTE = "data-lg-dock-empty";
+/** Written onto the composer element on every scan: how many cards sit above the prompt box. */
+export const DOCK_CARDS_ATTRIBUTE = "data-lg-dock-cards";
 export const DOCK_CLASS = "lg-dock";
 export const COMPACT_MEDIA = "(max-width: 767px), (pointer: coarse)";
 const STACK_SELECTOR = "[data-app-composer] > .grid";
@@ -285,7 +287,11 @@ export function installComposerDock(signal: AbortSignal): () => void {
     for (const stack of Array.from(document.querySelectorAll<HTMLElement>(STACK_SELECTOR))) {
       const composer = stack.parentElement;
       if (!composer) continue;
-      const leaves = leavesOf(stack);
+      const leaves = leavesOf(stack).filter((leaf) => visibleText(headerOf(leaf)) !== "");
+      const count = String(leaves.length);
+      if (composer.getAttribute(DOCK_CARDS_ATTRIBUTE) !== count) {
+        composer.setAttribute(DOCK_CARDS_ATTRIBUTE, count);
+      }
       if (!compactNow || leaves.length === 0) {
         release(composer, stack);
         continue;
@@ -335,7 +341,9 @@ export function installComposerDock(signal: AbortSignal): () => void {
     pendingFrame = null;
     for (const stack of Array.from(document.querySelectorAll<HTMLElement>(STACK_SELECTOR))) {
       const composer = stack.parentElement;
-      if (composer) release(composer, stack);
+      if (!composer) continue;
+      release(composer, stack);
+      composer.removeAttribute(DOCK_CARDS_ATTRIBUTE);
     }
     style.remove();
   };

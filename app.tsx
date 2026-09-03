@@ -18,6 +18,7 @@ import {
 import { APPEARANCE_EVENT } from "./src/theme-mode.js";
 import { AppearanceSection } from "./src/components/AppearanceSection.js";
 import { installComposerDock } from "./src/composer-dock.js";
+import { DockToggleButton } from "./src/components/DockToggleButton.js";
 
 /**
  * The host writes the active palette's CSS into this `<style>` element
@@ -360,6 +361,13 @@ export default definePluginApp((app) => {
     mount({ signal }) {
       return installComposerDock(signal);
     },
+  });
+
+  // The fold/unfold button lives in the prompt box's own action row.
+  app.composer.customize({
+    id: "composer-dock",
+    scopes: ["thread"],
+    actions: [{ id: "toggle", component: DockToggleButton }],
   });
 
   app.slots.settingsSection({

@@ -6,6 +6,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  DOCK_CARDS_ATTRIBUTE,
   DOCK_COLLAPSED_ATTRIBUTE,
   DOCK_EMPTY_ATTRIBUTE,
   DOCK_HIDDEN_ATTRIBUTE,
@@ -88,6 +89,8 @@ describe("the composer-dock content script", () => {
     expect(mounted.inspection.mountedIds).toContain("composer-dock");
     expect(composer.querySelector(".lg-dock")).toBeNull();
     expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(false);
+    expect(composer.getAttribute(DOCK_CARDS_ATTRIBUTE)).toBe("4");
+    expect(app.composerCustomizations.map((entry) => entry.id)).toContain("composer-dock");
   });
 
   it("folds the cards into pills on a phone in auto mode", async () => {
