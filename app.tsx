@@ -55,6 +55,7 @@ function clearVars(): void {
 }
 
 const THREAD_SCROLL_SELECTOR = '[data-thread-window] .thread-scrollbar';
+const THREAD_WINDOW_SELECTOR = '[data-thread-window]';
 const THREAD_COMPOSER_SELECTOR = '[data-follow-up-composer]';
 const THREAD_COMPOSER_COLLAPSED_ATTRIBUTE = 'data-lg-thread-composer-collapsed';
 
@@ -66,9 +67,28 @@ const THREAD_COMPOSER_COLLAPSED_ATTRIBUTE = 'data-lg-thread-composer-collapsed';
 function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
   const attached = new Map<HTMLElement, () => void>();
   const lastScrollTop = new WeakMap<HTMLElement, number>();
+  let lastWindowScrollTop =
+    window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+
+  const setScrollState = (
+    thread: HTMLElement,
+    composer: HTMLElement,
+    current: number,
+    previous: number,
+    distanceFromBottom: number,
+  ): void => {
+    if (composer.contains(document.activeElement) || distanceFromBottom <= 8) {
+      thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+      return;
+    }
+
+    if (current < previous - 2) {
+      thread.setAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE, '');
+    }
+  };
 
   const update = (scrollArea: HTMLElement): void => {
-    const thread = scrollArea.closest<HTMLElement>('[data-thread-window]');
+    const thread = scrollArea.closest<HTMLElement>(THREAD_WINDOW_SELECTOR);
     const composer = thread?.querySelector<HTMLElement>(THREAD_COMPOSER_SELECTOR);
     if (!thread || !composer) return;
 
@@ -77,14 +97,33 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     lastScrollTop.set(scrollArea, current);
     const distanceFromBottom =
       scrollArea.scrollHeight - scrollArea.clientHeight - current;
+    setScrollState(thread, composer, current, previous, distanceFromBottom);
+  };
 
-    if (composer.contains(document.activeElement) || distanceFromBottom <= 8) {
-      thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
-      return;
-    }
+  const updateWindowScroll = (): void => {
+    const current =
+      window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+    const previous = lastWindowScrollTop;
+    lastWindowScrollTop = current;
+    const documentHeight = Math.max(
+      document.documentElement.scrollHeight,
+      document.body.scrollHeight,
+    );
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
-    if (current < previous - 2) {
-      thread.setAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE, '');
+    for (const thread of Array.from(
+      document.querySelectorAll<HTMLElement>(THREAD_WINDOW_SELECTOR),
+    )) {
+      if (thread.querySelector(THREAD_SCROLL_SELECTOR)) continue;
+      const composer = thread.querySelector<HTMLElement>(THREAD_COMPOSER_SELECTOR);
+      if (!composer) continue;
+      setScrollState(
+        thread,
+        composer,
+        current,
+        previous,
+        documentHeight - viewportHeight - current,
+      );
     }
   };
 
@@ -125,11 +164,13 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
   const observer = new MutationObserver(scan);
   observer.observe(document.body, { childList: true, subtree: true });
   document.addEventListener('focusin', onFocusIn, true);
+  window.addEventListener('scroll', updateWindowScroll, { passive: true });
   scan();
 
   const dispose = (): void => {
     observer.disconnect();
     document.removeEventListener('focusin', onFocusIn, true);
+    window.removeEventListener('scroll', updateWindowScroll);
     for (const [scrollArea, detach] of attached) {
       detach();
       scrollArea

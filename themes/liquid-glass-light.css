@@ -418,11 +418,48 @@ html [data-thread-window] [data-promptbox] {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+html [data-thread-window] [data-follow-up-composer] {
+  background-color: var(--surface-raised-solid) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
 /* Reuse the host's existing compact composer rules while the reader scrolls
    away from the latest event. Focus and the bottom edge remove this flag. */
 html [data-thread-window][data-lg-thread-composer-collapsed]
   [data-follow-up-composer] {
   --follow-up-composer-container-compact: true !important;
+}
+/* Direct fallback for Chromium builds that do not reevaluate a style query
+   when a content script changes the queried custom property. */
+html [data-thread-window][data-lg-thread-composer-collapsed]
+  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-promptbox]:not([data-promptbox-zen]):not([data-promptbox-voice-active]) {
+  overflow: hidden !important;
+}
+html [data-thread-window][data-lg-thread-composer-collapsed]
+  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-promptbox-main] {
+  height: 3rem !important;
+}
+html [data-thread-window][data-lg-thread-composer-collapsed]
+  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-promptbox-expanded-only],
+html [data-thread-window][data-lg-thread-composer-collapsed]
+  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-follow-up-composer-footer] {
+  display: none !important;
+}
+html [data-thread-window][data-lg-thread-composer-collapsed]
+  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-promptbox-editor-scroll] {
+  height: 3rem !important;
+  min-height: 3rem !important;
+  max-height: 3rem !important;
+  overflow: hidden !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-right: 3.5rem !important;
 }
 /* The production footer is mounted as the direct child of a sticky dock. Use
    that stable relationship as a final escape hatch: it avoids relying on
