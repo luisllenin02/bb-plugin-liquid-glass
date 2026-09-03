@@ -34,14 +34,14 @@ for (const file of palettes) {
 
     // On a phone the sidebar and side panel are sheets over the thread: solid,
     // unblurred, and above the pane, so nothing reads through them.
-    const sheetRule = compact.match(/([^{}]*\[data-sidebar="panel"\]\[data-vaul-drawer-direction\][^{}]*)\{([^{}]+)\}/);
-    assert.ok(sheetRule, "compact sheet rule must exist");
-    assert.match(sheetRule[1], /\[data-secondary-panel-shelf\]/);
-    assert.match(sheetRule[2], /\/ max\(var\(--lg-sidebar-a, 0\.85\), 0\.82\)\)/, "tint floor so a glassy desktop setting cannot leave the thread legible");
-    assert.match(sheetRule[2], /blur\(max\(var\(--lg-blur, 24px\), 20px\)\) saturate\(1\.3\)/, "blur floor: the sheet is frosted, not clear and not black");
-    const innerRule = compact.match(/([^{}]*\[data-sidebar="sidebar"\]\[data-mobile="true"\][^{}]*)\{([^{}]+)\}/);
-    assert.ok(innerRule, "inner sidebar surfaces must be cleared so tints do not stack");
-    assert.match(innerRule[2], /background-color: transparent/);
+    const sidebarRule = compact.match(/([^{}]*\[data-sidebar="sidebar"\][^{}]*)\{([^{}]+)\}/);
+    assert.ok(sidebarRule, "compact sidebar sheet rule must exist");
+    assert.match(sidebarRule[1], /\[data-sidebar="sidebar"\]\[data-mobile="true"\]/);
+    assert.match(sidebarRule[1], /\[data-sidebar="panel"\]\[data-vaul-drawer-direction\]/);
+    assert.match(sidebarRule[1], /\[data-secondary-panel-shelf\]/);
+    assert.match(sidebarRule[2], /\/ max\(var\(--lg-sidebar-a, 0\.85\), 0\.96\)\)/);
+    assert.match(sidebarRule[2], /backdrop-filter: none/);
+    assert.doesNotMatch(sidebarRule[2], /blur\(/);
     assert.match(
       compact,
       /html \[data-sidebar="panel"\]\[data-state="open"\],\s*html \[data-secondary-panel-shelf\]\[data-state="shelf"\] \{\s*z-index: 40 !important;/,
@@ -54,8 +54,8 @@ for (const file of palettes) {
     );
     assert.match(
       compact,
-      /html \[data-testid="root-compose-compact-composer"\],\s*html \[data-root-compose-mobile-recents\] \.sticky \{\s*background-color: hsl\(var\(--glass-h\) var\(--glass-s\) var\(--glass-l\) \/ 0\.82\) !important;\s*background-image: none !important;\s*-webkit-backdrop-filter: blur\(20px\)/,
-      "the new-thread dock and Recent heading must be frosted on a phone",
+      /html \[data-testid="root-compose-compact-composer"\],\s*html \[data-testid="root-compose-compact-composer"\] \[data-promptbox\],\s*html \[data-root-compose-mobile-recents\] \.sticky \{\s*background-color: hsl\(var\(--glass-h\) var\(--glass-s\) var\(--glass-l\) \/ 0\.96\) !important;/,
+      "the new-thread prompt box and Recent heading must be solid on a phone",
     );
     assert.match(css, /\[data-vaul-drawer-direction\]:not\(\[data-sidebar="panel"\]\)/);
   });
