@@ -372,6 +372,16 @@ html [data-promptbox-shell] {
   backdrop-filter: none;
   box-shadow: none;
 }
+/* Follow-up composers put the environment and permission row in a separate
+   footer seam. It should match the new-thread shell rather than reintroduce a
+   tinted rectangle below the prompt card. */
+html [data-follow-up-composer-footer] {
+  background-color: transparent;
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
 @media (max-width: 767px), (pointer: coarse) {
   /* The host keeps the mobile sidebar panel fixed under the left edge of the
      page at all times (z-0, the page slides right to reveal it); through the

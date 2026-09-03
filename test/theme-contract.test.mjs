@@ -47,7 +47,7 @@ test("manifest contributes both Liquid Glass palettes plus a server and an app",
   }
   assert.equal(manifest.engines.bb, ">=0.41");
   assert.equal(manifest.engines.bbPluginSdk, ">=0.4.8");
-  assert.equal(manifest.version, "0.5.9");
+  assert.equal(manifest.version, "0.5.10");
   assert.ok(manifest.dependencies.zod, "zod must be a runtime dependency");
   for (const dependency of ["clsx", "tailwind-merge"]) {
     assert.ok(
@@ -312,6 +312,10 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(
       css,
       /html \[data-promptbox-shell\] \{\n\s*background-color: transparent;\n\s*background-image: none;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
+    );
+    assert.match(
+      css,
+      /html \[data-follow-up-composer-footer\] \{\n\s*background-color: transparent;\n\s*background-image: none;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
     );
     assert.match(
       css,
