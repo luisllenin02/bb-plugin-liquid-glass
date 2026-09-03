@@ -67,6 +67,8 @@ const THREAD_COMPOSER_COLLAPSED_ATTRIBUTE = 'data-lg-thread-composer-collapsed';
 function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
   const attached = new Map<HTMLElement, () => void>();
   const lastScrollTop = new WeakMap<HTMLElement, number>();
+  const pendingFrames = new Map<HTMLElement, number>();
+  let pendingWindowFrame: number | null = null;
   let lastWindowScrollTop =
     window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
 
@@ -78,11 +80,16 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     distanceFromBottom: number,
   ): void => {
     if (composer.contains(document.activeElement) || distanceFromBottom <= 8) {
-      thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+      if (thread.hasAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE)) {
+        thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
+      }
       return;
     }
 
-    if (current < previous - 2) {
+    if (
+      current < previous - 2 &&
+      !thread.hasAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE)
+    ) {
       thread.setAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE, '');
     }
   };
@@ -98,6 +105,15 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     const distanceFromBottom =
       scrollArea.scrollHeight - scrollArea.clientHeight - current;
     setScrollState(thread, composer, current, previous, distanceFromBottom);
+  };
+
+  const scheduleUpdate = (scrollArea: HTMLElement): void => {
+    if (pendingFrames.has(scrollArea)) return;
+    const frame = window.requestAnimationFrame(() => {
+      pendingFrames.delete(scrollArea);
+      update(scrollArea);
+    });
+    pendingFrames.set(scrollArea, frame);
   };
 
   const updateWindowScroll = (): void => {
@@ -135,11 +151,16 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     for (const scrollArea of currentAreas) {
       if (attached.has(scrollArea)) continue;
       lastScrollTop.set(scrollArea, scrollArea.scrollTop);
-      const onScroll = () => update(scrollArea);
+      const onScroll = () => scheduleUpdate(scrollArea);
       scrollArea.addEventListener('scroll', onScroll, { passive: true });
-      attached.set(scrollArea, () =>
-        scrollArea.removeEventListener('scroll', onScroll),
-      );
+      attached.set(scrollArea, () => {
+        scrollArea.removeEventListener('scroll', onScroll);
+        const frame = pendingFrames.get(scrollArea);
+        if (frame !== undefined) {
+          window.cancelAnimationFrame(frame);
+          pendingFrames.delete(scrollArea);
+        }
+      });
     }
 
     for (const [scrollArea, detach] of attached) {
@@ -164,13 +185,26 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
   const observer = new MutationObserver(scan);
   observer.observe(document.body, { childList: true, subtree: true });
   document.addEventListener('focusin', onFocusIn, true);
-  window.addEventListener('scroll', updateWindowScroll, { passive: true });
+  const onWindowScroll = (): void => {
+    if (pendingWindowFrame !== null) return;
+    pendingWindowFrame = window.requestAnimationFrame(() => {
+      pendingWindowFrame = null;
+      updateWindowScroll();
+    });
+  };
+  window.addEventListener('scroll', onWindowScroll, { passive: true });
   scan();
 
   const dispose = (): void => {
     observer.disconnect();
     document.removeEventListener('focusin', onFocusIn, true);
-    window.removeEventListener('scroll', updateWindowScroll);
+    window.removeEventListener('scroll', onWindowScroll);
+    for (const frame of pendingFrames.values()) window.cancelAnimationFrame(frame);
+    pendingFrames.clear();
+    if (pendingWindowFrame !== null) {
+      window.cancelAnimationFrame(pendingWindowFrame);
+      pendingWindowFrame = null;
+    }
     for (const [scrollArea, detach] of attached) {
       detach();
       scrollArea

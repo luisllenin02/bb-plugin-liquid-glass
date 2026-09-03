@@ -134,10 +134,12 @@ describe("the thread-composer-scroll-state content script", () => {
     const mounted = await mount();
     scrollTop = 300;
     scrollArea.dispatchEvent(new Event("scroll"));
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
     expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(true);
 
     scrollTop = 500;
     scrollArea.dispatchEvent(new Event("scroll"));
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
     expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(false);
 
     thread.setAttribute("data-lg-thread-composer-collapsed", "");
