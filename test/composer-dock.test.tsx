@@ -202,7 +202,7 @@ describe("the composer-dock content script", () => {
     expect(composer.getAttribute(DOCK_CARDS_ATTRIBUTE)).toBe("4");
 
     // The rail lists the cards back to front; hovering an entry previews, clicking brings to front.
-    const rail = stack.querySelector(":scope > .lg-deck-rail");
+    const rail = composer.querySelector(":scope > .lg-deck-rail");
     const items = Array.from(rail?.querySelectorAll<HTMLElement>(".lg-deck-rail-item") ?? []);
     expect(items.map((item) => item.dataset.index)).toEqual(["0", "1", "2", "3"]);
     expect(items[3]?.dataset.front).toBe("true");
@@ -233,7 +233,7 @@ describe("the composer-dock content script", () => {
     writeDockMode("cards");
     expect(composer.hasAttribute(DOCK_STACK_ATTRIBUTE)).toBe(false);
     expect(stack.querySelectorAll(`[${DOCK_LEAF_ATTRIBUTE}]`)).toHaveLength(0);
-    expect(stack.querySelector(".lg-deck-rail")).toBeNull();
+    expect(composer.querySelector(".lg-deck-rail")).toBeNull();
     expect(stack.querySelector(`[${METER_ATTRIBUTE}="under"]`)).not.toBeNull();
 
     writeMeterPlacement("stack");

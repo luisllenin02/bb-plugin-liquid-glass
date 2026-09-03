@@ -84,7 +84,9 @@ const CSS = `
 /* Stack: a translucent deck tucked behind the prompt box. The last card is
    the front of the deck, flush against the prompt box; earlier cards sit
    behind it, each narrower and showing only a header strip. */
-[${DOCK_STACK_ATTRIBUTE}] > .grid { row-gap: 0; margin-bottom: -10px; position: relative; z-index: 0; }
+/* The grid stays unpositioned so the composer is the containing block for
+   both the rail and the under-prompt meter. */
+[${DOCK_STACK_ATTRIBUTE}] > .grid { row-gap: 0; margin-bottom: -10px; }
 [${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}] {
   position: relative;
   z-index: calc(12 - var(--lg-dock-depth, 0));
@@ -134,9 +136,11 @@ const CSS = `
 
 /* Rail: one tick per card on the deck's right edge, back to front, top to
    bottom. Hovering it opens a list; hovering an entry previews the card and
-   clicking one brings it to the front. */
+   clicking one brings it to the front. Its bottom is set from the deck's
+   bottom edge by the script; its top follows the deck as cards lift. */
+[${DOCK_STACK_ATTRIBUTE}] { position: relative; }
 .${RAIL_CLASS} {
-  position: absolute; top: 4px; bottom: 12px; right: -16px; width: 14px;
+  position: absolute; top: 4px; right: -16px; width: 14px;
   display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px;
   z-index: 25;
 }
@@ -187,7 +191,7 @@ const CSS = `
 [${METER_ATTRIBUTE}="under"] > .flex-1, [${METER_ATTRIBUTE}="under"] > [class*="rounded-full"] { flex: 1 1 auto; min-width: 0; }
 [${METER_ATTRIBUTE}="under"] > span { display: none; }
 [${METER_ATTRIBUTE}="under"]:hover, [${METER_ATTRIBUTE}="under"][${DOCK_OPEN_ATTRIBUTE}="true"] {
-  width: min(60%, 420px); opacity: 1; background-color: ${GLASS} / 0.92);
+  width: min(44%, 320px); opacity: 1; background-color: ${GLASS} / 0.92);
 }
 [${METER_ATTRIBUTE}="under"]:hover > span, [${METER_ATTRIBUTE}="under"][${DOCK_OPEN_ATTRIBUTE}="true"] > span { display: inline; }
 @media (prefers-reduced-motion: reduce) {
@@ -404,7 +408,7 @@ function setAttr(element: Element, name: string, value: string | null): void {
   }
 }
 
-function clearDeckMarks(stack: Element): void {
+function clearDeckMarks(stack: Element, composer: Element): void {
   for (const element of Array.from(stack.querySelectorAll<HTMLElement>(`[${DOCK_LEAF_ATTRIBUTE}]`))) {
     element.removeAttribute(DOCK_LEAF_ATTRIBUTE);
     element.removeAttribute(DOCK_DEPTH_ATTRIBUTE);
@@ -418,7 +422,7 @@ function clearDeckMarks(stack: Element): void {
     item.removeAttribute("data-lg-dock-order");
   }
   stack.removeAttribute("data-lg-dock-previewing");
-  stack.querySelector(`.${RAIL_CLASS}`)?.remove();
+  composer.querySelector(`:scope > .${RAIL_CLASS}`)?.remove();
 }
 
 function clearHiddenMarks(stack: Element): void {
@@ -494,12 +498,13 @@ function markDeck(stack: Element, units: Unit[], state: DeckState): Element[] {
 
 /** The rail on the deck's right edge, reconciled in place like the pills. */
 function renderRail(
+  composer: HTMLElement,
   stack: HTMLElement,
   visual: Element[],
   state: DeckState,
   handlers: { preview(index: number | null): void; front(index: number): void },
 ): void {
-  let rail = stack.querySelector<HTMLElement>(`:scope > .${RAIL_CLASS}`);
+  let rail = composer.querySelector<HTMLElement>(`:scope > .${RAIL_CLASS}`);
   if (!rail) {
     rail = document.createElement("div");
     rail.className = RAIL_CLASS;
@@ -521,8 +526,12 @@ function renderRail(
       if (target) handlers.preview(Number(target.dataset.index));
     });
     rail.addEventListener("pointerleave", () => handlers.preview(null));
-    stack.append(rail);
+    composer.append(rail);
   }
+  // Anchor the ticks to the deck's bottom edge (the prompt box top), whatever
+  // sits below the stack in this composer.
+  const bottom = `${Math.max(0, Math.round(composer.getBoundingClientRect().bottom - stack.getBoundingClientRect().bottom)) + 14}px`;
+  if (rail.style.bottom !== bottom) rail.style.bottom = bottom;
   const menu = rail.querySelector<HTMLElement>(`.${RAIL_CLASS}-menu`);
   if (!menu) return;
   const frontIndex = Number(visual[visual.length - 1]?.getAttribute(DOCK_LEAF_ATTRIBUTE) ?? -1);
@@ -663,7 +672,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
     composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
     composer.removeAttribute(DOCK_STACK_ATTRIBUTE);
     clearHiddenMarks(stack);
-    clearDeckMarks(stack);
+    clearDeckMarks(stack, composer);
   };
 
   /** The meter leaves the stack only where there is a footer row to sit in and a pointer to hover with. */
@@ -713,7 +722,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
         clearHiddenMarks(stack);
         composer.setAttribute(DOCK_STACK_ATTRIBUTE, "");
         const visual = markDeck(stack, units, state);
-        renderRail(stack, visual, state, {
+        renderRail(composer, stack, visual, state, {
           preview: (index) => {
             if (state.preview === index) return;
             state.preview = index;
@@ -727,7 +736,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
         continue;
       }
       composer.removeAttribute(DOCK_STACK_ATTRIBUTE);
-      clearDeckMarks(stack);
+      clearDeckMarks(stack, composer);
       composer.setAttribute(DOCK_COLLAPSED_ATTRIBUTE, "");
       markHidden(stack, leaves, state.expanded);
       renderPills(ensureDock(composer, stack), leaves, state.expanded);
