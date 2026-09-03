@@ -1,8 +1,8 @@
 # Liquid Glass
 
-monocode's translucent window, inside bb: a wallpaper layer on the window floor
-and genuinely frosted panes above it, with the shell tint, accent, opacity,
-blur, and wallpaper all pickable.
+Liquid Glass brings monocode's translucent-window look to bb with a wallpaper
+layer beneath genuinely frosted panes, two dark and light palettes, and vibrant,
+pickable accents alongside adjustable shell tint, opacity, and blur.
 
 Two palettes:
 
@@ -34,12 +34,31 @@ wallpaper reaches the eye through both the sidebar and the main pane.
 
 ## Install
 
-```
-bb plugin install /path/to/liquid-glass --yes
-bb theme set plugin:liquid-glass:liquid-glass        # or :liquid-glass-light
+### BB Community marketplace
+
+Open bb's plugin marketplace, find **Liquid Glass**, and choose **Install**.
+
+### Git
+
+```bash
+bb plugin install git:https://github.com/luisllenin02/bb-plugin-liquid-glass.git@^0.5.4
 ```
 
-The palettes also appear under **Settings → Appearance**.
+### Activate
+
+```bash
+bb theme set plugin:liquid-glass:liquid-glass
+```
+
+Use `plugin:liquid-glass:liquid-glass-light` instead for the light palette. The
+palettes also appear under **Settings → Appearance**.
+
+Configure the theme visually under **Settings → Liquid Glass**, or use
+`bb liquid-glass` for the same settings from the command line. The plugin does
+not poll in the background; it reacts only to settings, appearance, and theme
+events. True transparency through to the desktop requires a compatible host
+build because a theme plugin cannot make an opaque application window
+transparent.
 
 ## Settings → Liquid Glass
 
@@ -99,15 +118,6 @@ secondary-panel headers fade downward into the pane, while composer docks,
 plugin cards, the context meter, and the scroll control fade upward. Tint and
 blur share the chosen fade distance; the prompt box stays a readable flat
 surface at the chrome opacity plus 12 percentage points, capped at solid.
-
-### Screenshot placeholders
-
-- [ ] Glass controls and independent pane settings
-- [ ] Palette cards with the Active badge and Apply button
-- [ ] Accent swatches, Monokai-vivid row, and hue ramps
-- [ ] Shell-tint chips and custom colour control
-- [ ] Named wallpaper gradient cards and custom image controls
-- [ ] Expanded Advanced fine-adjustment sliders
 
 ### Dialling in the glass
 
@@ -226,3 +236,14 @@ bb plugin build
 ```
 
 Fonts are deliberately not set here — the Fonts plugin owns typography.
+
+## Credits
+
+The visual direction is inspired by
+[hardbeat920/monocode](https://github.com/hardbeat920/monocode). Packaging
+patterns draw from [vburojevic/bb-plugin-ayu](https://github.com/vburojevic/bb-plugin-ayu)
+and [divyesh-puri/vercel-theme](https://github.com/divyesh-puri/vercel-theme).
+
+## License
+
+[MIT](LICENSE) © 2026 Luis Llenin.

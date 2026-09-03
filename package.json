@@ -2,6 +2,20 @@
   "name": "bb-plugin-liquid-glass",
   "version": "0.5.4",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luisllenin02/bb-plugin-liquid-glass.git"
+  },
+  "homepage": "https://github.com/luisllenin02/bb-plugin-liquid-glass#readme",
+  "bugs": {
+    "url": "https://github.com/luisllenin02/bb-plugin-liquid-glass/issues"
+  },
+  "keywords": [
+    "bb-plugin",
+    "theme",
+    "glass",
+    "monocode"
+  ],
   "license": "MIT",
   "engines": {
     "bb": ">=0.41",
