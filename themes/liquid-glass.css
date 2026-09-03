@@ -561,6 +561,19 @@ html [data-promptbox-shell] > .grid > * {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-sidebar-a, 0.85));
     -webkit-backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3); backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
   }
+  /* While open, the sidebar and the side panel sit above the pane, so they
+     read the same whether or not the page slides aside. Closed, nothing
+     changes. The host writes the panel's z-index inline, hence the importance. */
+  html [data-sidebar="panel"][data-state="open"],
+  html [data-secondary-panel-shelf][data-state="shelf"] {
+    z-index: 40 !important;
+  }
+  /* The new-thread screen parks its prompt box over the Recent list; give
+     the text field itself enough tint that the list does not print through
+     the typing area. The dock around it stays clear. */
+  html [data-testid="root-compose-compact-composer"] [data-promptbox] {
+    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / max(var(--lg-chrome-a, 0.72), 0.7)) !important;
+  }
 }
 @media (prefers-reduced-transparency: reduce) {
   :root, .light, .dark { --glass-overlay-a: 1; --lg-composer-idle-a: 1; --lg-composer-focus-a: 1; }
