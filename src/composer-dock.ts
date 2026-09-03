@@ -1,34 +1,40 @@
 /**
- * Composer dock — a minimize control for the plugin banner stack (goal,
- * todos, workflow runs, context meter) that the host renders above the
- * prompt box. Minimized, the stack is replaced by a single slim strip of
- * live status pills, so the chat keeps the space while the status stays
- * visible. The banners stay mounted (only hidden), so their plugins keep
- * updating and the pills mirror them.
+ * Composer dock — keeps the plugin banner stack (goal, todos, workflow runs,
+ * context meter) that the host renders above the prompt box out of the
+ * chat's way. In pill mode the stack is replaced by one slim row of live
+ * status pills; tapping a pill opens just that card beneath the row, and
+ * tapping it again puts the card away. There is no extra chrome: the pills
+ * are the control. The cards stay mounted (only hidden), so their plugins
+ * keep updating and the pills mirror them.
+ *
+ * Mode is a per-browser preference: `auto` (pills on phones and touch
+ * screens, cards on desktop), `pills`, or `cards`.
  */
 
-export const DOCK_STORAGE_KEY = "liquid-glass:composer-dock-collapsed";
+export type DockMode = "auto" | "pills" | "cards";
+
+export const DOCK_MODE_KEY = "liquid-glass:composer-dock";
+export const DOCK_MODE_EVENT = "liquid-glass:composer-dock-change";
 export const DOCK_COLLAPSED_ATTRIBUTE = "data-lg-dock-collapsed";
+export const DOCK_HIDDEN_ATTRIBUTE = "data-lg-dock-hidden";
+export const DOCK_EMPTY_ATTRIBUTE = "data-lg-dock-empty";
 export const DOCK_CLASS = "lg-dock";
+export const COMPACT_MEDIA = "(max-width: 767px), (pointer: coarse)";
 const STACK_SELECTOR = "[data-app-composer] > .grid";
 const MAX_PILL_CHARS = 28;
 
 const CSS = `
-[${DOCK_COLLAPSED_ATTRIBUTE}] > .grid { display: none; }
-.${DOCK_CLASS} {
-  display: flex; align-items: center; gap: 6px; min-width: 0;
-  height: 14px; margin-bottom: -6px;
-}
-[${DOCK_COLLAPSED_ATTRIBUTE}] > .${DOCK_CLASS} { height: 24px; margin-bottom: 0; }
+[${DOCK_COLLAPSED_ATTRIBUTE}] > .grid[${DOCK_EMPTY_ATTRIBUTE}] { display: none; }
+[${DOCK_COLLAPSED_ATTRIBUTE}] > .grid [${DOCK_HIDDEN_ATTRIBUTE}] { display: none; }
+.${DOCK_CLASS} { display: flex; align-items: center; min-width: 0; height: 24px; }
 .${DOCK_CLASS}-pills {
-  display: none; flex: 1 1 auto; min-width: 0; align-items: center; gap: 6px;
+  display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: 6px;
   overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
   padding-right: 14px;
   mask-image: linear-gradient(to right, black calc(100% - 18px), transparent);
   -webkit-mask-image: linear-gradient(to right, black calc(100% - 18px), transparent);
 }
 .${DOCK_CLASS}-pills::-webkit-scrollbar { display: none; }
-[${DOCK_COLLAPSED_ATTRIBUTE}] > .${DOCK_CLASS} > .${DOCK_CLASS}-pills { display: flex; }
 .${DOCK_CLASS}-pill {
   display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
   height: 22px; padding: 0 9px; border-radius: 999px;
@@ -37,42 +43,33 @@ const CSS = `
   font-variant-numeric: tabular-nums; letter-spacing: 0.01em; white-space: nowrap;
   cursor: pointer; max-width: 60vw; overflow: hidden; text-overflow: ellipsis;
 }
+.${DOCK_CLASS}-pill:focus-visible { outline: 2px solid var(--ring, var(--primary)); outline-offset: 1px; }
 .${DOCK_CLASS}-pill svg { width: 12px; height: 12px; flex: 0 0 auto; }
 .${DOCK_CLASS}-pill[data-tone="live"] { border-color: color-mix(in srgb, var(--primary) 60%, var(--border)); }
 .${DOCK_CLASS}-pill[data-tone="alert"] { border-color: color-mix(in srgb, var(--destructive, #e5484d) 60%, var(--border)); }
+.${DOCK_CLASS}-pill[data-active="true"] { background: var(--accent); color: var(--accent-foreground, var(--foreground)); border-color: color-mix(in srgb, var(--foreground) 24%, var(--border)); }
 .${DOCK_CLASS}-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-foreground); flex: 0 0 auto; }
 .${DOCK_CLASS}-pill[data-tone="live"] .${DOCK_CLASS}-dot { background: var(--primary); }
 .${DOCK_CLASS}-pill[data-tone="alert"] .${DOCK_CLASS}-dot { background: var(--destructive, #e5484d); }
-.${DOCK_CLASS}-toggle {
-  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
-  margin-left: auto; width: 22px; height: 14px; border: 0; border-radius: 7px;
-  background: transparent; color: var(--muted-foreground); cursor: pointer; padding: 0; opacity: 0.7;
-}
-.${DOCK_CLASS}-toggle:hover, .${DOCK_CLASS}-toggle:focus-visible { opacity: 1; color: var(--foreground); outline: none; background: var(--accent, transparent); }
-[${DOCK_COLLAPSED_ATTRIBUTE}] > .${DOCK_CLASS} > .${DOCK_CLASS}-toggle { height: 22px; width: 24px; border-radius: 999px; border: 1px solid var(--border); background: var(--popover); }
-.${DOCK_CLASS}-toggle svg { width: 12px; height: 12px; transition: transform 160ms ease; }
-[${DOCK_COLLAPSED_ATTRIBUTE}] > .${DOCK_CLASS} > .${DOCK_CLASS}-toggle svg { transform: rotate(180deg); }
-@media (prefers-reduced-motion: reduce) { .${DOCK_CLASS}-toggle svg { transition: none; } }
 `;
 
-const CHEVRON =
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6"/></svg>';
-
-function readCollapsed(): boolean {
+export function readDockMode(): DockMode {
   try {
-    return window.localStorage.getItem(DOCK_STORAGE_KEY) === "1";
+    const value = window.localStorage.getItem(DOCK_MODE_KEY);
+    return value === "pills" || value === "cards" ? value : "auto";
   } catch {
-    return false;
+    return "auto";
   }
 }
 
-function writeCollapsed(value: boolean): void {
+export function writeDockMode(mode: DockMode): void {
   try {
-    if (value) window.localStorage.setItem(DOCK_STORAGE_KEY, "1");
-    else window.localStorage.removeItem(DOCK_STORAGE_KEY);
+    if (mode === "auto") window.localStorage.removeItem(DOCK_MODE_KEY);
+    else window.localStorage.setItem(DOCK_MODE_KEY, mode);
   } catch {
     // Private mode: the choice lasts for this page only.
   }
+  window.dispatchEvent(new Event(DOCK_MODE_EVENT));
 }
 
 function compact(text: string): string {
@@ -113,88 +110,116 @@ function toneOf(banner: Element, text: string): "live" | "alert" | "idle" {
   return "idle";
 }
 
-/** One pill per banner; a banner that stacks several cards (workflow runs) yields one per card. */
+/**
+ * One pill per card. The host wraps each banner in a `display: contents` div
+ * (often empty when a plugin has nothing to show), and a plugin may stack
+ * several cards in one `space-y-2` group (workflow runs); look through both.
+ */
+function isWrapper(element: Element): boolean {
+  return (
+    element.classList.contains("contents") ||
+    element.matches("section.space-y-2, div.space-y-2")
+  );
+}
+
 function leavesOf(stack: Element): Element[] {
   const out: Element[] = [];
-  for (const child of Array.from(stack.children)) {
-    if (child.classList.contains(DOCK_CLASS)) continue;
-    const nested = child.matches("section.space-y-2, div.space-y-2")
-      ? Array.from(child.children)
-      : [];
-    if (nested.length > 0) out.push(...nested);
-    else out.push(child);
-  }
+  const visit = (element: Element): void => {
+    if (element.classList.contains(DOCK_CLASS)) return;
+    if (isWrapper(element)) {
+      for (const child of Array.from(element.children)) visit(child);
+      return;
+    }
+    out.push(element);
+  };
+  for (const child of Array.from(stack.children)) visit(child);
   return out;
 }
 
-function renderPills(dock: HTMLElement, stack: Element): void {
+/**
+ * Reconcile pills in place, keyed by card index. Workflow cards re-render
+ * every second (elapsed time), so replacing the pill nodes would detach the
+ * element under a finger mid-tap; updating text and state keeps them stable.
+ */
+function renderPills(dock: HTMLElement, leaves: Element[], expanded: Set<number>): void {
   const pills = dock.querySelector<HTMLElement>(`.${DOCK_CLASS}-pills`);
   if (!pills) return;
-  const keys: string[] = [];
-  const nodes: HTMLElement[] = [];
-  for (const leaf of leavesOf(stack)) {
+  const existing = new Map<string, HTMLElement>();
+  for (const pill of Array.from(pills.querySelectorAll<HTMLElement>(`.${DOCK_CLASS}-pill`))) {
+    existing.set(pill.dataset.index ?? "", pill);
+  }
+  let cursor: HTMLElement | null = null;
+  leaves.forEach((leaf, index) => {
     const header = headerOf(leaf);
     const full = visibleText(header);
     const text = compact(full);
-    if (!text) continue;
+    if (!text) return;
+    const key = String(index);
     const tone = toneOf(leaf, full);
     const icon = header.querySelector("svg");
-    keys.push(`${tone}|${text}|${icon ? "i" : ""}`);
-    const pill = document.createElement("button");
-    pill.type = "button";
-    pill.className = `${DOCK_CLASS}-pill`;
-    pill.dataset.tone = tone;
-    pill.title = full;
-    if (icon) pill.append(icon.cloneNode(true));
-    else {
+    const active = expanded.has(index);
+    let pill = existing.get(key) ?? null;
+    if (!pill) {
+      pill = document.createElement("button");
+      pill.setAttribute("type", "button");
+      pill.className = `${DOCK_CLASS}-pill`;
+      pill.dataset.index = key;
+      pill.append(document.createElement("span"), document.createTextNode(""));
+    }
+    existing.delete(key);
+    if (pill.dataset.tone !== tone) pill.dataset.tone = tone;
+    const activeValue = active ? "true" : "false";
+    if (pill.dataset.active !== activeValue) {
+      pill.dataset.active = activeValue;
+      pill.setAttribute("aria-pressed", activeValue);
+    }
+    const title = active ? `${full} — tap to put the card away` : `${full} — tap to open the card`;
+    if (pill.title !== title) pill.title = title;
+    const lead = pill.firstChild as Element | null;
+    const wantIcon = icon !== null;
+    const hasIcon = lead?.tagName?.toLowerCase() === "svg";
+    if (wantIcon && !hasIcon && lead) lead.replaceWith(icon.cloneNode(true));
+    else if (!wantIcon && (hasIcon || !lead?.classList.contains(`${DOCK_CLASS}-dot`)) && lead) {
       const dot = document.createElement("span");
       dot.className = `${DOCK_CLASS}-dot`;
-      pill.append(dot);
+      lead.replaceWith(dot);
     }
-    pill.append(document.createTextNode(text));
-    nodes.push(pill);
-  }
-  const signature = keys.join(" ");
-  if (pills.dataset.signature === signature) return;
-  pills.dataset.signature = signature;
-  pills.replaceChildren(...nodes);
+    const label = pill.lastChild;
+    if (label && label.nodeType === Node.TEXT_NODE) {
+      if (label.nodeValue !== text) label.nodeValue = text;
+    } else {
+      pill.append(document.createTextNode(text));
+    }
+    const anchor: ChildNode | null = cursor ? cursor.nextSibling : pills.firstChild;
+    if (pill !== anchor) pills.insertBefore(pill, anchor);
+    cursor = pill;
+  });
+  for (const stale of existing.values()) stale.remove();
 }
 
-function ensureDock(
-  composer: HTMLElement,
-  stack: Element,
-  collapsed: boolean,
-  onToggle: () => void,
-): void {
-  let dock = composer.querySelector<HTMLElement>(`:scope > .${DOCK_CLASS}`);
-  if (!dock) {
-    dock = document.createElement("div");
-    dock.className = DOCK_CLASS;
-    dock.setAttribute("data-lg-composer-dock", "");
-    const pills = document.createElement("div");
-    pills.className = `${DOCK_CLASS}-pills`;
-    pills.addEventListener("click", onToggle);
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = `${DOCK_CLASS}-toggle`;
-    toggle.innerHTML = CHEVRON;
-    toggle.addEventListener("click", onToggle);
-    dock.append(pills, toggle);
-    composer.insertBefore(dock, stack);
+function clearMarks(stack: Element): void {
+  stack.removeAttribute(DOCK_EMPTY_ATTRIBUTE);
+  for (const marked of Array.from(stack.querySelectorAll(`[${DOCK_HIDDEN_ATTRIBUTE}]`))) {
+    marked.removeAttribute(DOCK_HIDDEN_ATTRIBUTE);
   }
-  const toggle = dock.querySelector<HTMLButtonElement>(`.${DOCK_CLASS}-toggle`);
-  if (toggle) {
-    const label = collapsed ? "Show status cards" : "Minimize status cards";
-    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    toggle.setAttribute("aria-label", label);
-    toggle.title = label;
+}
+
+/** Hide every card except the expanded ones; a wrapper with no visible card hides too. */
+function markLeaves(stack: Element, leaves: Element[], expanded: Set<number>): void {
+  let visible = 0;
+  const wrappers = new Map<Element, boolean>();
+  leaves.forEach((leaf, index) => {
+    const show = expanded.has(index);
+    if (show) visible += 1;
+    leaf.toggleAttribute(DOCK_HIDDEN_ATTRIBUTE, !show);
+    for (let parent = leaf.parentElement; parent && parent !== stack; parent = parent.parentElement) {
+      wrappers.set(parent, (wrappers.get(parent) ?? false) || show);
+    }
+  });
+  for (const [wrapper, anyVisible] of wrappers) {
+    wrapper.toggleAttribute(DOCK_HIDDEN_ATTRIBUTE, !anyVisible);
   }
-  if (collapsed) {
-    composer.setAttribute(DOCK_COLLAPSED_ATTRIBUTE, "");
-    renderPills(dock, stack);
-  } else {
-    composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
-  }
+  stack.toggleAttribute(DOCK_EMPTY_ATTRIBUTE, visible === 0);
 }
 
 export function installComposerDock(signal: AbortSignal): () => void {
@@ -203,20 +228,73 @@ export function installComposerDock(signal: AbortSignal): () => void {
   style.textContent = CSS;
   document.head.append(style);
 
-  let collapsed = readCollapsed();
+  const media =
+    typeof window.matchMedia === "function" ? window.matchMedia(COMPACT_MEDIA) : null;
+  const expandedByComposer = new WeakMap<HTMLElement, Set<number>>();
+  let mode = readDockMode();
   let pendingFrame: number | null = null;
 
+  const isCompact = (): boolean =>
+    mode === "pills" || (mode === "auto" && (media?.matches ?? false));
+
+  const expandedOf = (composer: HTMLElement): Set<number> => {
+    let set = expandedByComposer.get(composer);
+    if (!set) {
+      set = new Set();
+      expandedByComposer.set(composer, set);
+    }
+    return set;
+  };
+
+  const onPillClick = (event: Event): void => {
+    const pill = (event.target as Element | null)?.closest<HTMLElement>(`.${DOCK_CLASS}-pill`);
+    const composer = pill?.closest<HTMLElement>("[data-app-composer]");
+    if (!pill || !composer) return;
+    const index = Number(pill.dataset.index);
+    const expanded = expandedOf(composer);
+    if (expanded.has(index)) expanded.delete(index);
+    else expanded.add(index);
+    scan();
+  };
+
+  const ensureDock = (composer: HTMLElement, stack: Element): HTMLElement => {
+    let dock = composer.querySelector<HTMLElement>(`:scope > .${DOCK_CLASS}`);
+    if (!dock) {
+      dock = document.createElement("div");
+      dock.className = DOCK_CLASS;
+      dock.setAttribute("data-lg-composer-dock", "");
+      dock.setAttribute("role", "toolbar");
+      dock.setAttribute("aria-label", "Status");
+      const pills = document.createElement("div");
+      pills.className = `${DOCK_CLASS}-pills`;
+      pills.addEventListener("click", onPillClick);
+      dock.append(pills);
+      composer.insertBefore(dock, stack);
+    }
+    return dock;
+  };
+
+  const release = (composer: HTMLElement, stack: Element): void => {
+    composer.querySelector(`:scope > .${DOCK_CLASS}`)?.remove();
+    composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
+    clearMarks(stack);
+  };
+
   const scan = (): void => {
+    const compactNow = isCompact();
     for (const stack of Array.from(document.querySelectorAll<HTMLElement>(STACK_SELECTOR))) {
       const composer = stack.parentElement;
       if (!composer) continue;
-      const dock = composer.querySelector<HTMLElement>(`:scope > .${DOCK_CLASS}`);
-      if (leavesOf(stack).length === 0) {
-        dock?.remove();
-        composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
+      const leaves = leavesOf(stack);
+      if (!compactNow || leaves.length === 0) {
+        release(composer, stack);
         continue;
       }
-      ensureDock(composer, stack, collapsed, toggle);
+      const expanded = expandedOf(composer);
+      for (const index of Array.from(expanded)) if (index >= leaves.length) expanded.delete(index);
+      composer.setAttribute(DOCK_COLLAPSED_ATTRIBUTE, "");
+      markLeaves(stack, leaves, expanded);
+      renderPills(ensureDock(composer, stack), leaves, expanded);
     }
   };
 
@@ -228,11 +306,10 @@ export function installComposerDock(signal: AbortSignal): () => void {
     });
   };
 
-  function toggle(): void {
-    collapsed = !collapsed;
-    writeCollapsed(collapsed);
+  const onModeChange = (): void => {
+    mode = readDockMode();
     scan();
-  }
+  };
 
   // The stack re-renders as runs progress; one scan per frame keeps the pills
   // current without doing work on every mutation record.
@@ -244,15 +321,21 @@ export function installComposerDock(signal: AbortSignal): () => void {
     attributes: true,
     attributeFilter: ["data-status", "data-full-active", "data-open"],
   });
+  window.addEventListener(DOCK_MODE_EVENT, onModeChange);
+  window.addEventListener("storage", onModeChange);
+  media?.addEventListener("change", scan);
   scan();
 
   const dispose = (): void => {
     observer.disconnect();
+    window.removeEventListener(DOCK_MODE_EVENT, onModeChange);
+    window.removeEventListener("storage", onModeChange);
+    media?.removeEventListener("change", scan);
     if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
     pendingFrame = null;
-    for (const dock of Array.from(document.querySelectorAll(`.${DOCK_CLASS}`))) dock.remove();
-    for (const composer of Array.from(document.querySelectorAll(`[${DOCK_COLLAPSED_ATTRIBUTE}]`))) {
-      composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
+    for (const stack of Array.from(document.querySelectorAll<HTMLElement>(STACK_SELECTOR))) {
+      const composer = stack.parentElement;
+      if (composer) release(composer, stack);
     }
     style.remove();
   };

@@ -7,12 +7,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DOCK_COLLAPSED_ATTRIBUTE,
-  DOCK_STORAGE_KEY,
+  DOCK_EMPTY_ATTRIBUTE,
+  DOCK_HIDDEN_ATTRIBUTE,
+  DOCK_MODE_KEY,
+  writeDockMode,
 } from "../src/composer-dock.js";
 
 const app = await loadPluginApp(() => import("../app.js"));
 
 let disposeMounted: (() => Promise<void>) | null = null;
+let phone = false;
 
 function buildComposer(): { composer: HTMLElement; stack: HTMLElement } {
   const composer = document.createElement("div");
@@ -21,10 +25,11 @@ function buildComposer(): { composer: HTMLElement; stack: HTMLElement } {
   const stack = document.createElement("div");
   stack.className = "grid gap-2";
   stack.innerHTML = `
-    <section class="goal-banner" data-status="paused">
-      <div class="goal-banner-header-row"><svg></svg> GOAL PAUSED 0 of 4 Revise the four client-review drafts</div>
+    <div class="contents"></div>
+    <div class="contents"><section class="goal-banner" data-status="paused">
+      <div class="goal-banner-header-row"><svg></svg><span>Goal</span><span>Paused</span><span>0 of 4</span><span>Revise the four client-review drafts</span></div>
       <div class="goal-banner-body">long body text that must not appear in a pill</div>
-    </section>
+    </section></div>
     <section class="todo-banner" data-full-active="true">
       <div class="todo-banner-header-row">3/6 complete · 1 active · 2 blocked Running production work</div>
       <div class="todo-banner-body">body</div>
@@ -42,8 +47,23 @@ function buildComposer(): { composer: HTMLElement; stack: HTMLElement } {
   return { composer, stack };
 }
 
+const pillsOf = (composer: HTMLElement) =>
+  Array.from(composer.querySelectorAll<HTMLElement>(".lg-dock-pill"));
+
 beforeEach(() => {
+  phone = false;
   vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ ok: false }) })));
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      media: query,
+      get matches() {
+        return phone;
+      },
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
   window.localStorage.clear();
 });
 
@@ -62,47 +82,70 @@ const mount = async () => {
 };
 
 describe("the composer-dock content script", () => {
-  it("adds a minimize control above a banner stack and leaves the stack visible by default", async () => {
+  it("leaves the cards alone on desktop in auto mode and adds no chrome", async () => {
     const { composer } = buildComposer();
     const mounted = await mount();
     expect(mounted.inspection.mountedIds).toContain("composer-dock");
-    const dock = composer.querySelector(":scope > .lg-dock");
-    expect(dock).not.toBeNull();
-    expect(dock?.nextElementSibling?.classList.contains("grid")).toBe(true);
+    expect(composer.querySelector(".lg-dock")).toBeNull();
     expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(false);
-    const toggle = dock?.querySelector<HTMLButtonElement>(".lg-dock-toggle");
-    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("minimizes into one pill per card, persists the choice, and expands again", async () => {
-    const { composer } = buildComposer();
-    await mount();
-    const toggle = composer.querySelector<HTMLButtonElement>(".lg-dock-toggle");
-    toggle?.click();
-
-    expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(true);
-    expect(window.localStorage.getItem(DOCK_STORAGE_KEY)).toBe("1");
-    const pills = Array.from(composer.querySelectorAll<HTMLElement>(".lg-dock-pill"));
-    expect(pills).toHaveLength(4);
-    expect(pills[0]?.textContent).toMatch(/^GOAL PAUSED 0 of 4/);
-    expect(pills[0]?.textContent).not.toContain("long body");
-    expect(pills[0]?.querySelector("svg")).not.toBeNull();
-    expect(pills[1]?.dataset.tone).toBe("alert");
-    expect(pills[2]?.dataset.tone).toBe("live");
-    expect(pills[2]?.textContent?.length).toBeLessThanOrEqual(28);
-    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
-
-    pills[0]?.click();
-    expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(false);
-    expect(window.localStorage.getItem(DOCK_STORAGE_KEY)).toBeNull();
-  });
-
-  it("starts minimized when the choice was saved and refreshes pills in one frame per mutation burst", async () => {
-    vi.useFakeTimers();
-    window.localStorage.setItem(DOCK_STORAGE_KEY, "1");
+  it("folds the cards into pills on a phone in auto mode", async () => {
+    phone = true;
     const { composer, stack } = buildComposer();
     await mount();
     expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(true);
+    expect(stack.hasAttribute(DOCK_EMPTY_ATTRIBUTE)).toBe(true);
+    expect(composer.querySelector(".lg-dock")?.nextElementSibling).toBe(stack);
+    const pills = pillsOf(composer);
+    expect(pills).toHaveLength(4);
+    expect(pills[0]?.textContent).toBe("Goal Paused 0 of 4 Revise t…");
+    expect(pills[0]?.querySelector("svg")).not.toBeNull();
+    expect(pills[1]?.dataset.tone).toBe("alert");
+    expect(pills[2]?.dataset.tone).toBe("live");
+    expect(pills.every((pill) => pill.dataset.active === "false")).toBe(true);
+  });
+
+  it("opens one card under the pills when its pill is tapped and puts it away on the second tap", async () => {
+    writeDockMode("pills");
+    const { composer, stack } = buildComposer();
+    await mount();
+    const leaves = Array.from(stack.querySelectorAll("section.goal-banner, section.todo-banner"));
+    const goalWrapper = stack.querySelector("div.contents:has(.goal-banner)");
+    const runs = stack.querySelector("section.space-y-2");
+
+    pillsOf(composer)[3]?.click();
+    expect(stack.hasAttribute(DOCK_EMPTY_ATTRIBUTE)).toBe(false);
+    expect(runs?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(false);
+    const secondRun = runs?.children[1];
+    expect(secondRun?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(false);
+    expect(runs?.children[0]?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(true);
+    expect(leaves[0]?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(true);
+    expect(goalWrapper?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(true);
+    expect(leaves[1]?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(true);
+    expect(pillsOf(composer)[3]?.dataset.active).toBe("true");
+    expect(pillsOf(composer)[3]?.getAttribute("aria-pressed")).toBe("true");
+
+    pillsOf(composer)[3]?.click();
+    expect(stack.hasAttribute(DOCK_EMPTY_ATTRIBUTE)).toBe(true);
+    expect(runs?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(true);
+    expect(pillsOf(composer)[3]?.dataset.active).toBe("false");
+
+    pillsOf(composer)[0]?.click();
+    expect(goalWrapper?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(false);
+    expect(leaves[0]?.hasAttribute(DOCK_HIDDEN_ATTRIBUTE)).toBe(false);
+    expect(stack.hasAttribute(DOCK_EMPTY_ATTRIBUTE)).toBe(false);
+  });
+
+  it("switches live when the mode changes and refreshes pills once per mutation burst", async () => {
+    vi.useFakeTimers();
+    const { composer, stack } = buildComposer();
+    await mount();
+    expect(composer.querySelector(".lg-dock")).toBeNull();
+
+    writeDockMode("pills");
+    expect(window.localStorage.getItem(DOCK_MODE_KEY)).toBe("pills");
+    expect(pillsOf(composer)).toHaveLength(4);
 
     const header = stack.querySelector(".todo-banner-header-row");
     for (let index = 0; index < 5; index += 1) {
@@ -110,25 +153,31 @@ describe("the composer-dock content script", () => {
       await Promise.resolve();
     }
     await vi.advanceTimersByTimeAsync(20);
-    const pills = Array.from(composer.querySelectorAll<HTMLElement>(".lg-dock-pill"));
-    expect(pills[1]?.textContent).toBe("8/6 complete · 0 active");
-    expect(pills[1]?.dataset.tone).toBe("live");
+    expect(pillsOf(composer)[1]?.textContent).toBe("8/6 complete · 0 active");
+
+    writeDockMode("cards");
+    expect(composer.querySelector(".lg-dock")).toBeNull();
+    expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(false);
+    expect(stack.querySelectorAll(`[${DOCK_HIDDEN_ATTRIBUTE}]`)).toHaveLength(0);
   });
 
-  it("removes the control when the stack empties and cleans up on dispose", async () => {
+  it("removes the pills when the stack empties and cleans up on dispose", async () => {
     vi.useFakeTimers();
+    writeDockMode("pills");
     const { composer, stack } = buildComposer();
     const mounted = await mount();
     stack.replaceChildren();
     await vi.advanceTimersByTimeAsync(20);
-    expect(composer.querySelector(":scope > .lg-dock")).toBeNull();
+    expect(composer.querySelector(".lg-dock")).toBeNull();
+    expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(false);
 
-    buildComposer();
+    const second = buildComposer();
     await vi.advanceTimersByTimeAsync(20);
     expect(document.querySelectorAll(".lg-dock")).toHaveLength(1);
     await mounted.lifecycle.dispose();
     disposeMounted = null;
     expect(document.querySelectorAll(".lg-dock")).toHaveLength(0);
+    expect(second.composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(false);
     expect(document.querySelector("style[data-lg-composer-dock]")).toBeNull();
   });
 });

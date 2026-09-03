@@ -353,8 +353,8 @@ export default definePluginApp((app) => {
     },
   });
 
-  // Minimize the goal/todo/workflow/context cards above the prompt box into a
-  // one-line strip of live status pills; the choice persists per browser.
+  // Fold the goal/todo/workflow/context cards above the prompt box into one
+  // line of live status pills (phones by default; a per-browser setting).
   app.contentScripts.register({
     id: "composer-dock",
     mount({ signal }) {
