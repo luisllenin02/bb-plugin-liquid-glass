@@ -12,6 +12,7 @@ export const LG_KNOBS = [
   "--lg-chrome-a",
   "--lg-chrome-fade",
   "--lg-chrome-blur",
+  "--lg-composer-idle-a",
   "--lg-wp-brightness",
   "--lg-wp-blur",
   "--lg-wp-sat",

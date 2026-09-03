@@ -427,6 +427,15 @@ html [data-thread-window] [data-promptbox] {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+/* While the caret is elsewhere the prompt box is glass: the wallpaper and
+   the transcript read through it at the idle opacity knob. The host marks the
+   box expanded on focus, and that flips it back to the solid surface above so
+   typing never fights the text behind it. */
+html [data-thread-window] [data-follow-up-composer]:not([data-follow-up-composer-expanded]) [data-promptbox] {
+  background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-composer-idle-a, 0.6)) !important;
+  -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2) !important;
+  backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2) !important;
+}
 html [data-thread-window] [data-follow-up-composer] {
   background-color: transparent !important;
   background-image: none !important;
@@ -538,7 +547,7 @@ html [data-promptbox-shell] > .grid > * {
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :root, .light, .dark { --glass-overlay-a: 1; }
+  :root, .light, .dark { --glass-overlay-a: 1; --lg-composer-idle-a: 1; }
   :is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], [data-promptbox], button[aria-label="Scroll to latest event"]) {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 1);
     background-image: none;

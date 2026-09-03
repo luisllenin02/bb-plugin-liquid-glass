@@ -115,6 +115,16 @@ export function GlassControls({
           onChange={(chromeBlur) => onChange({ chromeBlur })}
         />
       </Row>
+      <Row label="Idle prompt box" description="How solid the thread prompt box is while the caret is elsewhere. It goes solid on focus.">
+        <Slider
+          label="Idle prompt box"
+          value={Math.round(appearance.composerIdleOpacity * 100)}
+          display={`${Math.round(appearance.composerIdleOpacity * 100)}%`}
+          min={Math.round(RANGES.composerIdleOpacity.min * 100)}
+          max={Math.round(RANGES.composerIdleOpacity.max * 100)}
+          onChange={(percent) => onChange({ composerIdleOpacity: percent / 100 })}
+        />
+      </Row>
       <Row label="Compact solid panes" description="Main pane and sheets go near-solid on phones; the sidebar keeps its glass.">
         <Toggle
           label="Compact solid panes"

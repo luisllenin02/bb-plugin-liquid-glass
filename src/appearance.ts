@@ -35,6 +35,7 @@ export const RANGES = {
   chromeOpacity: { min: 0, max: 1, step: 0.01 },
   chromeFade: { min: 0, max: 96, step: 1 },
   chromeBlur: { min: 0, max: 48, step: 1 },
+  composerIdleOpacity: { min: 0.15, max: 1, step: 0.01 },
   wallpaperBrightness: { min: 0.3, max: 1.6, step: 0.01 },
   wallpaperBlur: { min: 0, max: 40, step: 1 },
   wallpaperSaturation: { min: 0, max: 2, step: 0.01 },
@@ -86,6 +87,11 @@ export const appearanceSchema = z
     chromeOpacity: z.number().min(RANGES.chromeOpacity.min).max(RANGES.chromeOpacity.max),
     chromeFade: z.number().min(RANGES.chromeFade.min).max(RANGES.chromeFade.max),
     chromeBlur: z.number().min(RANGES.chromeBlur.min).max(RANGES.chromeBlur.max),
+    /** Prompt box tint while the caret is elsewhere; it goes solid on focus. */
+    composerIdleOpacity: z
+      .number()
+      .min(RANGES.composerIdleOpacity.min)
+      .max(RANGES.composerIdleOpacity.max),
     compactSolidPanes: z.boolean(),
     wallpaper: z.enum([...WALLPAPER_PRESETS, "custom"]),
     wallpaperUrl: z.string().nullable(),
@@ -130,6 +136,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   chromeOpacity: 0.72,
   chromeFade: 40,
   chromeBlur: 20,
+  composerIdleOpacity: 0.6,
   compactSolidPanes: true,
   wallpaper: "aurora",
   wallpaperUrl: null,
@@ -293,6 +300,13 @@ export function resolveVars(
     "--lg-chrome-blur": `${Math.round(
       clamp(appearance.chromeBlur, RANGES.chromeBlur.min, RANGES.chromeBlur.max),
     )}px`,
+    "--lg-composer-idle-a": String(
+      clamp(
+        appearance.composerIdleOpacity,
+        RANGES.composerIdleOpacity.min,
+        RANGES.composerIdleOpacity.max,
+      ),
+    ),
     "--lg-wp-brightness": String(
       clamp(
         appearance.wallpaperBrightness,
@@ -352,6 +366,7 @@ export const MANAGED_VARS = [
   "--lg-chrome-a",
   "--lg-chrome-fade",
   "--lg-chrome-blur",
+  "--lg-composer-idle-a",
   "--lg-wp-brightness",
   "--lg-wp-blur",
   "--lg-wp-sat",
