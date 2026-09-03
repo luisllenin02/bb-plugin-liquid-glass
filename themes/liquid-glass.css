@@ -596,14 +596,6 @@ html [data-promptbox-shell] > .grid > * {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.85) !important;
     -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   }
-  /* A landscape wallpaper cover-cropped onto a portrait screen shows only
-     its middle, which is often the dark part; the colour lives at the edges.
-     The layer is heavily blurred anyway, so stretch it to the screen and keep
-     the whole colour field. iOS also ignores fixed attachment; do not rely on it. */
-  body::before {
-    background-size: 100% 100%;
-    background-attachment: scroll;
-  }
 }
 @media (prefers-reduced-transparency: reduce) {
   :root, .light, .dark { --glass-overlay-a: 1; --lg-composer-idle-a: 1; --lg-composer-focus-a: 1; }

@@ -58,10 +58,5 @@ for (const file of palettes) {
       "the new-thread dock and Recent heading must be frosted on a phone",
     );
     assert.match(css, /\[data-vaul-drawer-direction\]:not\(\[data-sidebar="panel"\]\)/);
-    assert.match(
-      compact,
-      /body::before \{\s*background-size: 100% 100%;\s*background-attachment: scroll;/,
-      "on a phone the wallpaper is stretched to the screen so a landscape image keeps its colour field",
-    );
   });
 }
