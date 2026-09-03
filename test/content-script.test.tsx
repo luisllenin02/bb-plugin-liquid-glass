@@ -177,6 +177,14 @@ describe("the thread-composer-scroll-state content script", () => {
     composer.focus();
     expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(false);
 
+    // The caret in the box does not pin it open: an upward scroll still folds it.
+    expect(composer.contains(document.activeElement)).toBe(true);
+    scrollTop = 300;
+    scrollArea.dispatchEvent(new Event("scroll"));
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 60));
+    expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(true);
+
     await mounted.lifecycle.dispose();
     disposeMounted = null;
     expect(thread.hasAttribute("data-lg-thread-composer-collapsed")).toBe(false);

@@ -84,16 +84,14 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     pendingCollapseTimers.delete(thread);
   };
 
-  const scheduleCollapse = (thread: HTMLElement, composer: HTMLElement): void => {
+  const scheduleCollapse = (thread: HTMLElement): void => {
     // Do not rearm on every scroll event. One brief guard gives the browser a
     // frame to settle its scroll position, while still responding to the first
     // upward movement rather than the end of the gesture.
     if (pendingCollapseTimers.has(thread)) return;
     const timer = window.setTimeout(() => {
       pendingCollapseTimers.delete(thread);
-      if (!composer.contains(document.activeElement)) {
-        thread.setAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE, '');
-      }
+      thread.setAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE, '');
     }, COMPOSER_COLLAPSE_DELAY_MS);
     pendingCollapseTimers.set(thread, timer);
   };
@@ -105,7 +103,10 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
     previous: number,
     distanceFromBottom: number,
   ): void => {
-    if (composer.contains(document.activeElement) || distanceFromBottom <= 8) {
+    // Focus does not pin the composer open: reading back through the thread
+    // with the caret still in the box compacts it like any other scroll.
+    // Focusing the box (onFocusIn) and reaching the bottom both expand it.
+    if (distanceFromBottom <= 8) {
       cancelPendingCollapse(thread);
       if (thread.hasAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE)) {
         thread.removeAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE);
@@ -115,7 +116,7 @@ function installThreadComposerScrollBehavior(signal: AbortSignal): () => void {
 
     if (current < previous - 2) {
       if (!thread.hasAttribute(THREAD_COMPOSER_COLLAPSED_ATTRIBUTE)) {
-        scheduleCollapse(thread, composer);
+        scheduleCollapse(thread);
       }
     } else if (current > previous + 2) {
       cancelPendingCollapse(thread);

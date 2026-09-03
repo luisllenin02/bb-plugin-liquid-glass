@@ -439,7 +439,7 @@ html [data-thread-window] [data-follow-up-composer] {
    that keyword to the compact 3rem target, which lets the dock settle smoothly
    after scrolling without touching the transcript while it is moving. */
 @media (prefers-reduced-motion: no-preference) {
-  html [data-thread-window] [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  html [data-thread-window] [data-follow-up-composer]
     :is([data-promptbox-main], [data-promptbox-editor-scroll]) {
     interpolate-size: allow-keywords;
     transition:
@@ -450,7 +450,9 @@ html [data-thread-window] [data-follow-up-composer] {
   }
 }
 /* Reuse the host's existing compact composer rules while the reader scrolls
-   away from the latest event. Focus and the bottom edge remove this flag. */
+   away from the latest event. Focusing the box and the bottom edge remove
+   this flag. The host marks a focused box expanded; that must not veto the
+   compaction, or a box with the caret in it would never fold on scroll. */
 html [data-thread-window][data-lg-thread-composer-collapsed]
   [data-follow-up-composer] {
   --follow-up-composer-container-compact: true !important;
@@ -458,25 +460,25 @@ html [data-thread-window][data-lg-thread-composer-collapsed]
 /* Direct fallback for Chromium builds that do not reevaluate a style query
    when a content script changes the queried custom property. */
 html [data-thread-window][data-lg-thread-composer-collapsed]
-  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-follow-up-composer]
   [data-promptbox]:not([data-promptbox-zen]):not([data-promptbox-voice-active]) {
   overflow: hidden !important;
 }
 html [data-thread-window][data-lg-thread-composer-collapsed]
-  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-follow-up-composer]
   [data-promptbox-main] {
   height: 3rem !important;
 }
 html [data-thread-window][data-lg-thread-composer-collapsed]
-  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-follow-up-composer]
   [data-promptbox-expanded-only],
 html [data-thread-window][data-lg-thread-composer-collapsed]
-  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-follow-up-composer]
   [data-follow-up-composer-footer] {
   display: none !important;
 }
 html [data-thread-window][data-lg-thread-composer-collapsed]
-  [data-follow-up-composer]:not([data-follow-up-composer-expanded])
+  [data-follow-up-composer]
   [data-promptbox-editor-scroll] {
   height: 3rem !important;
   min-height: 3rem !important;
