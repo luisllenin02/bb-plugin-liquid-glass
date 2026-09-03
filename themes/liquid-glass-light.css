@@ -500,8 +500,9 @@ html [data-thread-window][data-lg-thread-composer-collapsed]
   min-height: 3rem !important;
   max-height: 3rem !important;
   overflow: hidden !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
+  /* One centred line: 3rem box minus 1.5rem line, split top and bottom. */
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
   padding-right: 3.5rem !important;
 }
 /* The production footer is mounted as the direct child of a sticky dock. Use

@@ -96,18 +96,18 @@ const CSS = `
   border-radius: 12px;
   transform: scale(calc(1 - var(--lg-dock-depth, 0) * 0.035));
   transform-origin: 50% 100%;
-  background-color: ${GLASS} / 0.55) !important;
-  -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
-  backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+  /* Tint only: a backdrop blur per card is one GPU layer per card, and
+     entering the deck rasterised all of them at once. */
+  background-color: ${GLASS} / 0.62) !important;
   box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.08), 0 -2px 10px hsl(0 0% 0% / 0.25);
   cursor: pointer;
   transition:
-    max-height 220ms cubic-bezier(0.2, 0, 0, 1),
-    margin 220ms cubic-bezier(0.2, 0, 0, 1),
-    transform 220ms cubic-bezier(0.2, 0, 0, 1),
-    opacity 160ms ease,
-    background-color 160ms ease,
-    box-shadow 160ms ease;
+    max-height 160ms cubic-bezier(0.2, 0, 0, 1),
+    margin 160ms cubic-bezier(0.2, 0, 0, 1),
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
 }
 [${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}][${DOCK_FIRST_ATTRIBUTE}] { margin-top: 0; }
 /* A lifted card: full height, pulled forward, and it pushes the cards in
@@ -119,7 +119,7 @@ const CSS = `
   z-index: 20;
   transform: translateY(-2px);
   cursor: default;
-  background-color: ${GLASS} / 0.92) !important;
+  background-color: ${GLASS} / 0.94) !important;
   box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.12), 0 10px 28px hsl(0 0% 0% / 0.38);
 }
 [${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}]:not([${DOCK_DEPTH_ATTRIBUTE}="0"]):hover,
@@ -156,9 +156,7 @@ const CSS = `
   position: absolute; right: 20px; bottom: 0; display: none; flex-direction: column; gap: 2px;
   min-width: 200px; max-width: min(380px, 70vw); padding: 6px; border-radius: 10px;
   border: 1px solid var(--border);
-  background: ${GLASS} / 0.94);
-  -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
-  backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+  background: ${GLASS} / 0.96);
   box-shadow: 0 10px 28px hsl(0 0% 0% / 0.38);
   z-index: 40;
 }
@@ -180,18 +178,22 @@ const CSS = `
    grows to show its numbers on hover or click. */
 [${METER_HOST_ATTRIBUTE}] { position: relative; }
 [${METER_ATTRIBUTE}="under"] {
-  position: absolute !important; left: 50%; bottom: 3px; transform: translateX(-50%);
-  width: 96px; height: 18px; margin: 0 !important; padding: 0 7px !important;
+  position: absolute !important; bottom: 3px;
+  left: var(--lg-meter-left, 50%); width: var(--lg-meter-width, 96px);
+  height: 18px; margin: 0 !important; padding: 0 7px !important;
   display: flex !important; align-items: center; gap: 6px; z-index: 30;
   border-radius: 999px; overflow: hidden; opacity: 0.85; cursor: pointer;
-  background-color: ${GLASS} / 0.55);
-  transition: width 200ms cubic-bezier(0.2, 0, 0, 1), opacity 160ms ease, background-color 160ms ease;
+  background-color: ${GLASS} / 0.62);
+  transition: width 160ms cubic-bezier(0.2, 0, 0, 1), left 160ms cubic-bezier(0.2, 0, 0, 1), opacity 120ms ease, background-color 120ms ease;
 }
+/* The footer row leaves with the fold, so the meter goes with it. */
+[data-lg-thread-composer-collapsed] [${METER_ATTRIBUTE}="under"] { opacity: 0; pointer-events: none; }
 [${METER_ATTRIBUTE}="under"] > * { flex: 0 0 auto; }
 [${METER_ATTRIBUTE}="under"] > .flex-1, [${METER_ATTRIBUTE}="under"] > [class*="rounded-full"] { flex: 1 1 auto; min-width: 0; }
 [${METER_ATTRIBUTE}="under"] > span { display: none; }
 [${METER_ATTRIBUTE}="under"]:hover, [${METER_ATTRIBUTE}="under"][${DOCK_OPEN_ATTRIBUTE}="true"] {
-  width: min(44%, 320px); opacity: 1; background-color: ${GLASS} / 0.92);
+  left: var(--lg-meter-wide-left, var(--lg-meter-left, 50%));
+  width: var(--lg-meter-wide, 320px); opacity: 1; background-color: ${GLASS} / 0.94);
 }
 [${METER_ATTRIBUTE}="under"]:hover > span, [${METER_ATTRIBUTE}="under"][${DOCK_OPEN_ATTRIBUTE}="true"] > span { display: inline; }
 @media (prefers-reduced-motion: reduce) {
@@ -502,6 +504,7 @@ function renderRail(
   stack: HTMLElement,
   visual: Element[],
   state: DeckState,
+  below: number,
   handlers: { preview(index: number | null): void; front(index: number): void },
 ): void {
   let rail = composer.querySelector<HTMLElement>(`:scope > .${RAIL_CLASS}`);
@@ -530,7 +533,7 @@ function renderRail(
   }
   // Anchor the ticks to the deck's bottom edge (the prompt box top), whatever
   // sits below the stack in this composer.
-  const bottom = `${Math.max(0, Math.round(composer.getBoundingClientRect().bottom - stack.getBoundingClientRect().bottom)) + 14}px`;
+  const bottom = `${Math.max(0, Math.round(below)) + 14}px`;
   if (rail.style.bottom !== bottom) rail.style.bottom = bottom;
   const menu = rail.querySelector<HTMLElement>(`.${RAIL_CLASS}-menu`);
   if (!menu) return;
@@ -691,9 +694,48 @@ export function installComposerDock(signal: AbortSignal): () => void {
       previous.removeAttribute(METER_ATTRIBUTE);
       previous.removeAttribute(DOCK_OPEN_ATTRIBUTE);
     }
-    if (meter) setAttr(meter, METER_ATTRIBUTE, "under");
+    if (meter) {
+      setAttr(meter, METER_ATTRIBUTE, "under");
+      fitMeter(composer, meter as HTMLElement);
+    }
     setAttr(composer, METER_HOST_ATTRIBUTE, meter ? "" : null);
     return meter;
+  };
+
+  /**
+   * Park the meter in the footer row's free gap: between the end of the
+   * project/machine labels on the left and the start of the controls on the
+   * right. Widened, it fills that gap, so it never sits on either.
+   */
+  const fitMeter = (composer: HTMLElement, meter: HTMLElement): void => {
+    const footer = composer.querySelector<HTMLElement>("[data-follow-up-composer-footer]");
+    if (!footer) return;
+    const base = composer.getBoundingClientRect();
+    const row = footer.getBoundingClientRect();
+    const groups = Array.from(footer.children) as HTMLElement[];
+    let leftEnd = row.left;
+    let rightStart = row.right;
+    if (groups.length >= 2) {
+      const [leftGroup, rightGroup] = [groups[0], groups[groups.length - 1]];
+      for (const child of Array.from(leftGroup.children)) {
+        leftEnd = Math.max(leftEnd, child.getBoundingClientRect().right);
+      }
+      rightStart = rightGroup.getBoundingClientRect().left;
+    }
+    const gap = rightStart - leftEnd;
+    const pad = 10;
+    const free = Math.max(0, gap - pad * 2);
+    const compactWidth = Math.min(96, free);
+    const wideWidth = Math.max(compactWidth, Math.min(free, 360));
+    const center = leftEnd + gap / 2 - base.left;
+    const set = (name: string, value: string) => {
+      if (meter.style.getPropertyValue(name) !== value) meter.style.setProperty(name, value);
+    };
+    set("--lg-meter-left", `${Math.round(center - compactWidth / 2)}px`);
+    set("--lg-meter-width", `${Math.round(compactWidth)}px`);
+    set("--lg-meter-wide-left", `${Math.round(center - wideWidth / 2)}px`);
+    set("--lg-meter-wide", `${Math.round(wideWidth)}px`);
+    setAttr(meter, "data-lg-meter-tight", free < 140 ? "" : null);
   };
 
   const scan = (): void => {
@@ -717,12 +759,15 @@ export function installComposerDock(signal: AbortSignal): () => void {
       for (const index of Array.from(state.expanded)) if (index >= leaves.length) state.expanded.delete(index);
       if (state.preview !== null && state.preview >= leaves.length) state.preview = null;
       if (presentation === "stack") {
+        // Read layout before this composer's writes so the scan forces at
+        // most one synchronous layout per composer.
+        const below = composer.getBoundingClientRect().bottom - stack.getBoundingClientRect().bottom;
         composer.querySelector(`:scope > .${DOCK_CLASS}`)?.remove();
         composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
         clearHiddenMarks(stack);
         composer.setAttribute(DOCK_STACK_ATTRIBUTE, "");
         const visual = markDeck(stack, units, state);
-        renderRail(composer, stack, visual, state, {
+        renderRail(composer, stack, visual, state, below, {
           preview: (index) => {
             if (state.preview === index) return;
             state.preview = index;
@@ -769,6 +814,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
   });
   window.addEventListener(DOCK_MODE_EVENT, onModeChange);
   window.addEventListener("storage", onModeChange);
+  window.addEventListener("resize", scheduleScan, { passive: true });
   media?.addEventListener("change", scan);
   scan();
 
@@ -776,6 +822,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
     observer.disconnect();
     window.removeEventListener(DOCK_MODE_EVENT, onModeChange);
     window.removeEventListener("storage", onModeChange);
+    window.removeEventListener("resize", scheduleScan);
     media?.removeEventListener("change", scan);
     if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
     pendingFrame = null;
