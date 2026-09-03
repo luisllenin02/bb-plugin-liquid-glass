@@ -8,9 +8,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DOCK_CARDS_ATTRIBUTE,
   DOCK_COLLAPSED_ATTRIBUTE,
+  DOCK_DEPTH_ATTRIBUTE,
   DOCK_EMPTY_ATTRIBUTE,
   DOCK_HIDDEN_ATTRIBUTE,
+  DOCK_LEAF_ATTRIBUTE,
   DOCK_MODE_KEY,
+  DOCK_OPEN_ATTRIBUTE,
+  DOCK_STACK_ATTRIBUTE,
+  nextDockMode,
   writeDockMode,
 } from "../src/composer-dock.js";
 
@@ -162,6 +167,39 @@ describe("the composer-dock content script", () => {
     expect(composer.querySelector(".lg-dock")).toBeNull();
     expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(false);
     expect(stack.querySelectorAll(`[${DOCK_HIDDEN_ATTRIBUTE}]`)).toHaveLength(0);
+  });
+
+  it("tucks the cards into a deck in stack mode; a click on a card pins it open, a control click passes through", async () => {
+    writeDockMode("stack");
+    const { composer, stack } = buildComposer();
+    await mount();
+    expect(composer.hasAttribute(DOCK_STACK_ATTRIBUTE)).toBe(true);
+    expect(composer.hasAttribute(DOCK_COLLAPSED_ATTRIBUTE)).toBe(false);
+    expect(composer.querySelector(".lg-dock")).toBeNull();
+    const leaves = Array.from(stack.querySelectorAll<HTMLElement>(`[${DOCK_LEAF_ATTRIBUTE}]`));
+    expect(leaves).toHaveLength(4);
+    expect(leaves[0]?.getAttribute(DOCK_DEPTH_ATTRIBUTE)).toBe("first");
+    expect(leaves[0]?.style.getPropertyValue("--lg-dock-depth")).toBe("3");
+    expect(leaves[3]?.getAttribute(DOCK_DEPTH_ATTRIBUTE)).toBe("0");
+    expect(stack.querySelectorAll(`[${DOCK_HIDDEN_ATTRIBUTE}]`)).toHaveLength(0);
+
+    const goal = leaves[0];
+    goal?.querySelector(".goal-banner-header-row")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(goal?.getAttribute(DOCK_OPEN_ATTRIBUTE)).toBe("true");
+    goal?.querySelector(".goal-banner-header-row")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(goal?.getAttribute(DOCK_OPEN_ATTRIBUTE)).toBe("false");
+
+    const control = document.createElement("button");
+    goal?.append(control);
+    control.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(goal?.getAttribute(DOCK_OPEN_ATTRIBUTE)).toBe("false");
+
+    writeDockMode("cards");
+    expect(composer.hasAttribute(DOCK_STACK_ATTRIBUTE)).toBe(false);
+    expect(stack.querySelectorAll(`[${DOCK_LEAF_ATTRIBUTE}]`)).toHaveLength(0);
+    expect(nextDockMode("cards")).toBe("stack");
+    expect(nextDockMode("stack")).toBe("pills");
+    expect(nextDockMode("pills")).toBe("cards");
   });
 
   it("removes the pills when the stack empties and cleans up on dispose", async () => {

@@ -1,29 +1,41 @@
 /**
  * Composer dock — keeps the plugin banner stack (goal, todos, workflow runs,
  * context meter) that the host renders above the prompt box out of the
- * chat's way. In pill mode the stack is replaced by one slim row of live
- * status pills; tapping a pill opens just that card beneath the row, and
- * tapping it again puts the card away. There is no extra chrome: the pills
- * are the control. The cards stay mounted (only hidden), so their plugins
- * keep updating and the pills mirror them.
+ * chat's way. Three presentations:
  *
- * Mode is a per-browser preference: `auto` (pills on phones and touch
- * screens, cards on desktop), `pills`, or `cards`.
+ * - `cards`: the host's stack, untouched.
+ * - `stack`: the cards tuck behind the prompt box as a translucent deck. Each
+ *   shows only its header strip; hovering or clicking a card lifts it to full
+ *   height, a second click puts it back.
+ * - `pills`: one slim row of live status pills; tapping a pill opens just
+ *   that card beneath the row, tapping again puts it away.
+ *
+ * The cards stay mounted in every mode, so their plugins keep updating. Mode
+ * is a per-browser preference: `auto` (pills on phones and touch screens,
+ * cards on desktop), `cards`, `stack`, or `pills`.
  */
 
-export type DockMode = "auto" | "pills" | "cards";
+export type DockMode = "auto" | "cards" | "stack" | "pills";
+export type DockPresentation = Exclude<DockMode, "auto">;
 
 export const DOCK_MODE_KEY = "liquid-glass:composer-dock";
 export const DOCK_MODE_EVENT = "liquid-glass:composer-dock-change";
+/** Pills mode marker on the composer. */
 export const DOCK_COLLAPSED_ATTRIBUTE = "data-lg-dock-collapsed";
+/** Stack mode marker on the composer. */
+export const DOCK_STACK_ATTRIBUTE = "data-lg-dock-stack";
 export const DOCK_HIDDEN_ATTRIBUTE = "data-lg-dock-hidden";
 export const DOCK_EMPTY_ATTRIBUTE = "data-lg-dock-empty";
 /** Written onto the composer element on every scan: how many cards sit above the prompt box. */
 export const DOCK_CARDS_ATTRIBUTE = "data-lg-dock-cards";
+export const DOCK_LEAF_ATTRIBUTE = "data-lg-dock-leaf";
+export const DOCK_DEPTH_ATTRIBUTE = "data-lg-dock-depth";
+export const DOCK_OPEN_ATTRIBUTE = "data-lg-dock-open";
 export const DOCK_CLASS = "lg-dock";
 export const COMPACT_MEDIA = "(max-width: 767px), (pointer: coarse)";
 const STACK_SELECTOR = "[data-app-composer] > .grid";
 const MAX_PILL_CHARS = 28;
+const INTERACTIVE_SELECTOR = "button, a, input, textarea, select, [role='button'], [contenteditable]";
 
 const CSS = `
 [${DOCK_COLLAPSED_ATTRIBUTE}] > .grid[${DOCK_EMPTY_ATTRIBUTE}] { display: none; }
@@ -53,12 +65,46 @@ const CSS = `
 .${DOCK_CLASS}-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-foreground); flex: 0 0 auto; }
 .${DOCK_CLASS}-pill[data-tone="live"] .${DOCK_CLASS}-dot { background: var(--primary); }
 .${DOCK_CLASS}-pill[data-tone="alert"] .${DOCK_CLASS}-dot { background: var(--destructive, #e5484d); }
+
+/* Stack: a translucent deck tucked behind the prompt box. The last card is
+   the front of the deck, flush against the prompt box; earlier cards sit
+   behind it, each narrower and showing only a header strip. */
+[${DOCK_STACK_ATTRIBUTE}] > .grid { row-gap: 0; margin-bottom: -10px; position: relative; z-index: 0; }
+[${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}] {
+  position: relative;
+  z-index: calc(12 - var(--lg-dock-depth, 0));
+  max-height: 38px;
+  overflow: hidden;
+  margin-top: -16px;
+  border-radius: 12px;
+  transform: scale(calc(1 - var(--lg-dock-depth, 0) * 0.035));
+  transform-origin: 50% 100%;
+  background-color: hsl(var(--glass-h, 240) var(--glass-s, 0%) var(--glass-l, 9%) / 0.55) !important;
+  -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.08), 0 -2px 10px hsl(0 0% 0% / 0.25);
+  cursor: pointer;
+  transition: max-height 220ms cubic-bezier(0.2, 0, 0, 1), transform 220ms cubic-bezier(0.2, 0, 0, 1), background-color 160ms ease;
+}
+[${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}][${DOCK_DEPTH_ATTRIBUTE}="first"] { margin-top: 0; }
+[${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}]:hover,
+[${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}][${DOCK_OPEN_ATTRIBUTE}="true"] {
+  max-height: 70vh;
+  z-index: 20;
+  transform: none;
+  cursor: default;
+  background-color: hsl(var(--glass-h, 240) var(--glass-s, 0%) var(--glass-l, 9%) / 0.92) !important;
+}
+[${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}][${DOCK_OPEN_ATTRIBUTE}="true"] { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  [${DOCK_STACK_ATTRIBUTE}] [${DOCK_LEAF_ATTRIBUTE}] { transition: none; }
+}
 `;
 
 export function readDockMode(): DockMode {
   try {
     const value = window.localStorage.getItem(DOCK_MODE_KEY);
-    return value === "pills" || value === "cards" ? value : "auto";
+    return value === "pills" || value === "cards" || value === "stack" ? value : "auto";
   } catch {
     return "auto";
   }
@@ -72,6 +118,21 @@ export function writeDockMode(mode: DockMode): void {
     // Private mode: the choice lasts for this page only.
   }
   window.dispatchEvent(new Event(DOCK_MODE_EVENT));
+}
+
+/** What `auto` means here and now, so the glyph and the dock agree. */
+export function resolveDockMode(mode: DockMode = readDockMode()): DockPresentation {
+  if (mode !== "auto") return mode;
+  const phone =
+    typeof window.matchMedia === "function" && window.matchMedia(COMPACT_MEDIA).matches;
+  return phone ? "pills" : "cards";
+}
+
+/** Cards → stack (minimize) → pills (hide) → cards. */
+export function nextDockMode(current: DockPresentation): DockPresentation {
+  if (current === "cards") return "stack";
+  if (current === "stack") return "pills";
+  return "cards";
 }
 
 function compact(text: string): string {
@@ -113,7 +174,7 @@ function toneOf(banner: Element, text: string): "live" | "alert" | "idle" {
 }
 
 /**
- * One pill per card. The host wraps each banner in a `display: contents` div
+ * One card per leaf. The host wraps each banner in a `display: contents` div
  * (often empty when a plugin has nothing to show), and a plugin may stack
  * several cards in one `space-y-2` group (workflow runs); look through both.
  */
@@ -135,7 +196,7 @@ function leavesOf(stack: Element): Element[] {
     out.push(element);
   };
   for (const child of Array.from(stack.children)) visit(child);
-  return out;
+  return out.filter((leaf) => visibleText(headerOf(leaf)) !== "");
 }
 
 /**
@@ -199,15 +260,24 @@ function renderPills(dock: HTMLElement, leaves: Element[], expanded: Set<number>
   for (const stale of existing.values()) stale.remove();
 }
 
-function clearMarks(stack: Element): void {
-  stack.removeAttribute(DOCK_EMPTY_ATTRIBUTE);
-  for (const marked of Array.from(stack.querySelectorAll(`[${DOCK_HIDDEN_ATTRIBUTE}]`))) {
-    marked.removeAttribute(DOCK_HIDDEN_ATTRIBUTE);
+function clearDeckMarks(stack: Element): void {
+  for (const element of Array.from(stack.querySelectorAll<HTMLElement>(`[${DOCK_LEAF_ATTRIBUTE}]`))) {
+    element.removeAttribute(DOCK_LEAF_ATTRIBUTE);
+    element.removeAttribute(DOCK_DEPTH_ATTRIBUTE);
+    element.removeAttribute(DOCK_OPEN_ATTRIBUTE);
+    element.style.removeProperty("--lg-dock-depth");
   }
 }
 
-/** Hide every card except the expanded ones; a wrapper with no visible card hides too. */
-function markLeaves(stack: Element, leaves: Element[], expanded: Set<number>): void {
+function clearHiddenMarks(stack: Element): void {
+  stack.removeAttribute(DOCK_EMPTY_ATTRIBUTE);
+  for (const element of Array.from(stack.querySelectorAll(`[${DOCK_HIDDEN_ATTRIBUTE}]`))) {
+    element.removeAttribute(DOCK_HIDDEN_ATTRIBUTE);
+  }
+}
+
+/** Pills: hide every card except the expanded ones; a wrapper with no visible card hides too. */
+function markHidden(stack: Element, leaves: Element[], expanded: Set<number>): void {
   let visible = 0;
   const wrappers = new Map<Element, boolean>();
   leaves.forEach((leaf, index) => {
@@ -224,6 +294,29 @@ function markLeaves(stack: Element, leaves: Element[], expanded: Set<number>): v
   stack.toggleAttribute(DOCK_EMPTY_ATTRIBUTE, visible === 0);
 }
 
+/** Stack: depth 0 is the front card (last, against the prompt box); earlier cards sit deeper. */
+function markDeck(stack: Element, leaves: Element[], expanded: Set<number>): void {
+  const last = leaves.length - 1;
+  leaves.forEach((leaf, index) => {
+    const element = leaf as HTMLElement;
+    const depth = String(last - index);
+    if (element.getAttribute(DOCK_LEAF_ATTRIBUTE) !== String(index)) {
+      element.setAttribute(DOCK_LEAF_ATTRIBUTE, String(index));
+    }
+    const tier = index === 0 ? "first" : depth;
+    if (element.getAttribute(DOCK_DEPTH_ATTRIBUTE) !== tier) {
+      element.setAttribute(DOCK_DEPTH_ATTRIBUTE, tier);
+    }
+    if (element.style.getPropertyValue("--lg-dock-depth") !== depth) {
+      element.style.setProperty("--lg-dock-depth", depth);
+    }
+    const open = expanded.has(index) ? "true" : "false";
+    if (element.getAttribute(DOCK_OPEN_ATTRIBUTE) !== open) {
+      element.setAttribute(DOCK_OPEN_ATTRIBUTE, open);
+    }
+  });
+}
+
 export function installComposerDock(signal: AbortSignal): () => void {
   const style = document.createElement("style");
   style.setAttribute("data-lg-composer-dock", "");
@@ -233,11 +326,9 @@ export function installComposerDock(signal: AbortSignal): () => void {
   const media =
     typeof window.matchMedia === "function" ? window.matchMedia(COMPACT_MEDIA) : null;
   const expandedByComposer = new WeakMap<HTMLElement, Set<number>>();
+  const stacksWithListener = new WeakSet<Element>();
   let mode = readDockMode();
   let pendingFrame: number | null = null;
-
-  const isCompact = (): boolean =>
-    mode === "pills" || (mode === "auto" && (media?.matches ?? false));
 
   const expandedOf = (composer: HTMLElement): Set<number> => {
     let set = expandedByComposer.get(composer);
@@ -248,15 +339,31 @@ export function installComposerDock(signal: AbortSignal): () => void {
     return set;
   };
 
-  const onPillClick = (event: Event): void => {
-    const pill = (event.target as Element | null)?.closest<HTMLElement>(`.${DOCK_CLASS}-pill`);
-    const composer = pill?.closest<HTMLElement>("[data-app-composer]");
-    if (!pill || !composer) return;
-    const index = Number(pill.dataset.index);
+  const toggleIndex = (composer: HTMLElement, index: number): void => {
     const expanded = expandedOf(composer);
     if (expanded.has(index)) expanded.delete(index);
     else expanded.add(index);
     scan();
+  };
+
+  const onPillClick = (event: Event): void => {
+    const pill = (event.target as Element | null)?.closest<HTMLElement>(`.${DOCK_CLASS}-pill`);
+    const composer = pill?.closest<HTMLElement>("[data-app-composer]");
+    if (!pill || !composer) return;
+    toggleIndex(composer, Number(pill.dataset.index));
+  };
+
+  // In the deck, a click on a card's own surface pins it open or puts it
+  // back; clicks on the card's controls (edit, close, expand) pass through.
+  const onDeckClick = (event: Event): void => {
+    const target = event.target as Element | null;
+    const composer = target?.closest<HTMLElement>("[data-app-composer]");
+    if (!composer || !composer.hasAttribute(DOCK_STACK_ATTRIBUTE)) return;
+    const leaf = target?.closest<HTMLElement>(`[${DOCK_LEAF_ATTRIBUTE}]`);
+    if (!leaf) return;
+    const control = target?.closest(INTERACTIVE_SELECTOR);
+    if (control && leaf.contains(control)) return;
+    toggleIndex(composer, Number(leaf.getAttribute(DOCK_LEAF_ATTRIBUTE)));
   };
 
   const ensureDock = (composer: HTMLElement, stack: Element): HTMLElement => {
@@ -279,27 +386,43 @@ export function installComposerDock(signal: AbortSignal): () => void {
   const release = (composer: HTMLElement, stack: Element): void => {
     composer.querySelector(`:scope > .${DOCK_CLASS}`)?.remove();
     composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
-    clearMarks(stack);
+    composer.removeAttribute(DOCK_STACK_ATTRIBUTE);
+    clearHiddenMarks(stack);
+    clearDeckMarks(stack);
   };
 
   const scan = (): void => {
-    const compactNow = isCompact();
+    const presentation = resolveDockMode(mode);
     for (const stack of Array.from(document.querySelectorAll<HTMLElement>(STACK_SELECTOR))) {
       const composer = stack.parentElement;
       if (!composer) continue;
-      const leaves = leavesOf(stack).filter((leaf) => visibleText(headerOf(leaf)) !== "");
+      const leaves = leavesOf(stack);
       const count = String(leaves.length);
       if (composer.getAttribute(DOCK_CARDS_ATTRIBUTE) !== count) {
         composer.setAttribute(DOCK_CARDS_ATTRIBUTE, count);
       }
-      if (!compactNow || leaves.length === 0) {
+      if (presentation === "cards" || leaves.length === 0) {
         release(composer, stack);
         continue;
       }
       const expanded = expandedOf(composer);
       for (const index of Array.from(expanded)) if (index >= leaves.length) expanded.delete(index);
+      if (!stacksWithListener.has(stack)) {
+        stack.addEventListener("click", onDeckClick);
+        stacksWithListener.add(stack);
+      }
+      if (presentation === "stack") {
+        composer.querySelector(`:scope > .${DOCK_CLASS}`)?.remove();
+        composer.removeAttribute(DOCK_COLLAPSED_ATTRIBUTE);
+        clearHiddenMarks(stack);
+        composer.setAttribute(DOCK_STACK_ATTRIBUTE, "");
+        markDeck(stack, leaves, expanded);
+        continue;
+      }
+      composer.removeAttribute(DOCK_STACK_ATTRIBUTE);
+      clearDeckMarks(stack);
       composer.setAttribute(DOCK_COLLAPSED_ATTRIBUTE, "");
-      markLeaves(stack, leaves, expanded);
+      markHidden(stack, leaves, expanded);
       renderPills(ensureDock(composer, stack), leaves, expanded);
     }
   };
@@ -318,7 +441,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
   };
 
   // The stack re-renders as runs progress; one scan per frame keeps the pills
-  // current without doing work on every mutation record.
+  // and deck current without doing work on every mutation record.
   const observer = new MutationObserver(scheduleScan);
   observer.observe(document.body, {
     childList: true,
@@ -344,6 +467,7 @@ export function installComposerDock(signal: AbortSignal): () => void {
       if (!composer) continue;
       release(composer, stack);
       composer.removeAttribute(DOCK_CARDS_ATTRIBUTE);
+      stack.removeEventListener("click", onDeckClick);
     }
     style.remove();
   };

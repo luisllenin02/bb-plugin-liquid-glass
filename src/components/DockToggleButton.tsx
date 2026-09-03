@@ -5,15 +5,33 @@ import {
   COMPACT_MEDIA,
   DOCK_CARDS_ATTRIBUTE,
   DOCK_MODE_EVENT,
-  readDockMode,
+  nextDockMode,
+  resolveDockMode,
   writeDockMode,
+  type DockPresentation,
 } from "../composer-dock.js";
 import { cn } from "../lib/utils.js";
 
-/** Double chevron up: fold the cards into pills. Same 24-grid and stroke as the host's single chevron. */
-const FOLD = "M18 13s-4.4 5-6 5-6-5-6-5M18 6s-4.4 5-6 5-6-5-6-5";
-/** Double chevron down: unfold the pills into cards. */
-const UNFOLD = "M6 11s4.4-5 6-5 6 5 6 5M6 18s4.4-5 6-5 6 5 6 5";
+/**
+ * One glyph per state, each showing the next step and drawn on the host's
+ * 24-grid at its stroke. Cards: double chevron up (tuck into a deck). Stack:
+ * chevron up onto a bar (hide into pills). Pills: double chevron down (show
+ * the cards again).
+ */
+const GLYPHS: Record<DockPresentation, { path: string; label: string }> = {
+  cards: {
+    path: "M18 13s-4.4 5-6 5-6-5-6-5M18 6s-4.4 5-6 5-6-5-6-5",
+    label: "Tuck status cards behind the prompt box",
+  },
+  stack: {
+    path: "M6 5h12M18 17s-4.4-5-6-5-6 5-6 5",
+    label: "Hide status cards into pills",
+  },
+  pills: {
+    path: "M6 11s4.4-5 6-5 6 5 6 5M6 18s4.4-5 6-5 6 5 6 5",
+    label: "Show status cards",
+  },
+};
 
 const HOST_ACTIONS_SELECTOR =
   "[data-promptbox-input-region] > [data-promptbox-standard-actions][data-promptbox-expanded-only]";
@@ -21,15 +39,10 @@ const HOST_ACTIONS_SELECTOR =
 const HOST_ACTIONS_RIGHT_PX = 13;
 const GAP_PX = 2;
 
-function compactNow(): boolean {
-  const mode = readDockMode();
-  if (mode !== "auto") return mode === "pills";
-  return typeof window.matchMedia === "function" && window.matchMedia(COMPACT_MEDIA).matches;
-}
 
 /**
- * Composer action: folds the status cards above the prompt box into pills
- * and back, for this device. It renders nothing in the action row; instead
+ * Composer action: cycles the status cards above the prompt box through
+ * cards, deck, and pills for this device. It renders nothing in the action row; instead
  * it portals a ghost glyph into the prompt box's top-right corner, beside the
  * host's collapse chevron, marked `data-promptbox-expanded-only` so it shows
  * and hides exactly when that chevron does. Hidden while the composer has no
@@ -37,12 +50,12 @@ function compactNow(): boolean {
  */
 export function DockToggleButton() {
   const rootRef = useRef<HTMLSpanElement>(null);
-  const [pills, setPills] = useState(() => compactNow());
+  const [presentation, setPresentation] = useState<DockPresentation>(() => resolveDockMode());
   const [cards, setCards] = useState(false);
   const [mount, setMount] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    const sync = () => setPills(compactNow());
+    const sync = () => setPresentation(resolveDockMode());
     window.addEventListener(DOCK_MODE_EVENT, sync);
     window.addEventListener("storage", sync);
     const media =
@@ -96,16 +109,17 @@ export function DockToggleButton() {
     };
   }, []);
 
-  const label = pills ? "Show status cards" : "Fold status cards into pills";
+  const { path, label } = GLYPHS[presentation];
   const glyph =
     mount && cards
       ? createPortal(
           <button
             type="button"
             aria-label={label}
-            aria-pressed={pills}
+            aria-pressed={presentation !== "cards"}
+            data-lg-dock-state={presentation}
             title={label}
-            onClick={() => writeDockMode(pills ? "cards" : "pills")}
+            onClick={() => writeDockMode(nextDockMode(presentation))}
             className={cn(
               "inline-flex h-8 w-6 cursor-pointer items-center justify-center rounded-md",
               "text-muted-foreground transition-colors duration-150 hover:text-foreground",
@@ -125,7 +139,7 @@ export function DockToggleButton() {
               aria-hidden="true"
               className="size-3.5"
             >
-              <path d={pills ? UNFOLD : FOLD} />
+              <path d={path} />
             </svg>
           </button>,
           mount,

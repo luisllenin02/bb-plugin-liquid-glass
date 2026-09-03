@@ -11,8 +11,9 @@ import { Row } from "./rows.js";
 
 const OPTIONS: { value: DockMode; label: string }[] = [
   { value: "auto", label: "Auto" },
-  { value: "pills", label: "Pills" },
   { value: "cards", label: "Cards" },
+  { value: "stack", label: "Stack" },
+  { value: "pills", label: "Pills" },
 ];
 
 /**
@@ -34,7 +35,7 @@ export function ComposerDockRow() {
   return (
     <Row
       label="Status above the prompt"
-      description="Pills fold the goal, todo, workflow, and context cards into one line; tap a pill to open its card. Auto uses pills on phones and cards on desktop. Saved on this device."
+      description="Stack tucks the goal, todo, workflow, and context cards behind the prompt box as a see-through deck; hover or click a card to read it. Pills fold them into one line; tap a pill to open its card. Auto uses pills on phones and cards on desktop. Saved on this device."
     >
       <div
         role="radiogroup"
