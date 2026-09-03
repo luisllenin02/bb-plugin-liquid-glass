@@ -53,6 +53,7 @@ describe("getAppearance", () => {
       chromeFade: 40,
       chromeBlur: 20,
       composerIdleOpacity: 0.6,
+      composerFocusOpacity: 1,
       compactSolidPanes: true,
       wallpaperBrightness: 1,
       wallpaperBlur: 0,

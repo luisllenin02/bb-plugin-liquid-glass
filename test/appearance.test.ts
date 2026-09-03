@@ -92,6 +92,7 @@ describe("resolveVars", () => {
       "--lg-chrome-fade": "40px",
       "--lg-chrome-blur": "20px",
       "--lg-composer-idle-a": "0.6",
+      "--lg-composer-focus-a": "1",
       "--lg-wp-brightness": "1",
       "--lg-wp-blur": "0px",
       "--lg-wp-sat": "1.1",

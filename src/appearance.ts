@@ -36,6 +36,7 @@ export const RANGES = {
   chromeFade: { min: 0, max: 96, step: 1 },
   chromeBlur: { min: 0, max: 48, step: 1 },
   composerIdleOpacity: { min: 0.15, max: 1, step: 0.01 },
+  composerFocusOpacity: { min: 0.15, max: 1, step: 0.01 },
   wallpaperBrightness: { min: 0.3, max: 1.6, step: 0.01 },
   wallpaperBlur: { min: 0, max: 40, step: 1 },
   wallpaperSaturation: { min: 0, max: 2, step: 0.01 },
@@ -92,6 +93,11 @@ export const appearanceSchema = z
       .number()
       .min(RANGES.composerIdleOpacity.min)
       .max(RANGES.composerIdleOpacity.max),
+    /** Prompt box tint while it holds the caret; 1 keeps it solid for typing. */
+    composerFocusOpacity: z
+      .number()
+      .min(RANGES.composerFocusOpacity.min)
+      .max(RANGES.composerFocusOpacity.max),
     compactSolidPanes: z.boolean(),
     wallpaper: z.enum([...WALLPAPER_PRESETS, "custom"]),
     wallpaperUrl: z.string().nullable(),
@@ -137,6 +143,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   chromeFade: 40,
   chromeBlur: 20,
   composerIdleOpacity: 0.6,
+  composerFocusOpacity: 1,
   compactSolidPanes: true,
   wallpaper: "aurora",
   wallpaperUrl: null,
@@ -307,6 +314,13 @@ export function resolveVars(
         RANGES.composerIdleOpacity.max,
       ),
     ),
+    "--lg-composer-focus-a": String(
+      clamp(
+        appearance.composerFocusOpacity,
+        RANGES.composerFocusOpacity.min,
+        RANGES.composerFocusOpacity.max,
+      ),
+    ),
     "--lg-wp-brightness": String(
       clamp(
         appearance.wallpaperBrightness,
@@ -367,6 +381,7 @@ export const MANAGED_VARS = [
   "--lg-chrome-fade",
   "--lg-chrome-blur",
   "--lg-composer-idle-a",
+  "--lg-composer-focus-a",
   "--lg-wp-brightness",
   "--lg-wp-blur",
   "--lg-wp-sat",

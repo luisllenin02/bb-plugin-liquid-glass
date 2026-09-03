@@ -125,6 +125,16 @@ export function GlassControls({
           onChange={(percent) => onChange({ composerIdleOpacity: percent / 100 })}
         />
       </Row>
+      <Row label="Focused prompt box" description="How solid the thread prompt box is while it holds the caret. 100% keeps typing on a solid surface.">
+        <Slider
+          label="Focused prompt box"
+          value={Math.round(appearance.composerFocusOpacity * 100)}
+          display={`${Math.round(appearance.composerFocusOpacity * 100)}%`}
+          min={Math.round(RANGES.composerFocusOpacity.min * 100)}
+          max={Math.round(RANGES.composerFocusOpacity.max * 100)}
+          onChange={(percent) => onChange({ composerFocusOpacity: percent / 100 })}
+        />
+      </Row>
       <Row label="Compact solid panes" description="Main pane and sheets go near-solid on phones; the sidebar keeps its glass.">
         <Toggle
           label="Compact solid panes"

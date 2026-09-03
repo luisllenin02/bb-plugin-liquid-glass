@@ -436,6 +436,13 @@ html [data-thread-window] [data-follow-up-composer]:not([data-follow-up-composer
   -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2) !important;
   backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2) !important;
 }
+/* The focused box has its own knob. At 1 (the default) this is the same solid
+   surface as above; lowering it lets the box stay glass while typing. */
+html [data-thread-window] [data-follow-up-composer][data-follow-up-composer-expanded] [data-promptbox] {
+  background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-composer-focus-a, 1)) !important;
+  -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2) !important;
+  backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2) !important;
+}
 html [data-thread-window] [data-follow-up-composer] {
   background-color: transparent !important;
   background-image: none !important;
@@ -547,7 +554,7 @@ html [data-promptbox-shell] > .grid > * {
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :root, .light, .dark { --glass-overlay-a: 1; --lg-composer-idle-a: 1; }
+  :root, .light, .dark { --glass-overlay-a: 1; --lg-composer-idle-a: 1; --lg-composer-focus-a: 1; }
   :is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], [data-promptbox], button[aria-label="Scroll to latest event"]) {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 1);
     background-image: none;

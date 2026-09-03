@@ -118,6 +118,7 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.equal(knobDefault(css, "--lg-chrome-fade"), "40px");
     assert.equal(knobDefault(css, "--lg-chrome-blur"), "20px");
     assert.equal(knobDefault(css, "--lg-composer-idle-a"), "0.6");
+    assert.equal(knobDefault(css, "--lg-composer-focus-a"), "1");
     assert.equal(knobDefault(css, "--lg-hue"), "240");
     assert.equal(knobDefault(css, "--lg-sat"), "0%");
     assert.equal(knobDefault(css, "--lg-accent-h"), "211");
@@ -359,6 +360,11 @@ for (const [mode, css] of Object.entries(palettes)) {
       "the idle (unfocused) thread prompt box must be glass at the idle-opacity knob and solid once focused",
     );
     assert.match(css, /prefers-reduced-transparency: reduce\)[\s\S]*--lg-composer-idle-a: 1;/);
+    assert.match(
+      css,
+      /html \[data-thread-window\] \[data-follow-up-composer\]\[data-follow-up-composer-expanded\] \[data-promptbox\] \{\n\s*background-color: hsl\(var\(--glass-h\) var\(--glass-s\) var\(--glass-l\) \/ var\(--lg-composer-focus-a, 1\)\) !important;/,
+      "the focused thread prompt box must follow its own opacity knob, solid by default",
+    );
     assert.match(
       css,
       /html \[data-promptbox-shell\] > \.grid \{\n\s*grid-template-columns: minmax\(0, 1fr\);\n\}\nhtml \[data-promptbox-shell\] > \.grid > \* \{\n\s*min-width: 0;\n\s*max-width: 100%;\n\}/,
