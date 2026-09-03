@@ -362,7 +362,8 @@ for (const [mode, css] of Object.entries(palettes)) {
     );
     assert.match(
       css,
-      /\[data-testid="root-compose-compact-home"\] \{\n\s*background-color: transparent;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
+      /\[data-testid="root-compose-compact-home"\]\[data-testid="root-compose-compact-home"\] \{\n\s*background-color: transparent;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
+      "the new-thread shell override must outrank the two-attribute sheet list or the shell paints as a sheet",
     );
     assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*background-image: none/);
     assert.match(

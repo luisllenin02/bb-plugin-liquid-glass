@@ -341,7 +341,11 @@ html :is([role="menu"], [role="listbox"], [data-radix-popper-content-wrapper] > 
 /* The new-thread home shell wraps the actual prompt card and its environment
    strip. It is not a sheet; leaving the shell's host background in place makes
    the whole composer area read as a solid black rectangle over the wallpaper. */
-[data-testid="root-compose-compact-home"] {
+/* The sheet list above includes `[data-vaul-drawer-direction]:not([data-sidebar="panel"])`,
+   which lifts the whole `:is()` to two attribute selectors; a single-attribute
+   override here silently lost to it and the shell painted as a 94% sheet over
+   the entire new-thread screen. Double the attribute to outrank it. */
+[data-testid="root-compose-compact-home"][data-testid="root-compose-compact-home"] {
   background-color: transparent;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
