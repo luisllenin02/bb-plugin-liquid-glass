@@ -317,9 +317,13 @@ for (const [mode, css] of Object.entries(palettes)) {
       css,
       /html \[data-follow-up-composer-footer\] \{\n\s*background-color: transparent;\n\s*background-image: none;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
     );
-    assert.match(css, /html \[data-thread-window\] \.bg-background:has\(\.chat-prompt-box\)/);
-    assert.match(css, /html \[data-thread-window\] \.bg-background:has\(\[data-promptbox-shell\]\)/);
+    assert.match(css, /html \[data-thread-window\] \.sticky\.bottom-0 > \.bg-sidebar,/);
     assert.match(css, /html \[data-thread-window\] \.chat-prompt-box/);
+    assert.doesNotMatch(
+      css.replace(/\/\*[\s\S]*?\*\//g, ""),
+      /:has\(/,
+      "no :has() selectors: a :has() anchored inside a thread pane forces a full pane re-match on every mutation, which lagged typing and menu opening",
+    );
     assert.match(
       css,
       /@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?interpolate-size: allow-keywords;[\s\S]*?height 120ms cubic-bezier\(0\.2, 0, 0, 1\)/,
@@ -335,7 +339,13 @@ for (const [mode, css] of Object.entries(palettes)) {
     );
     assert.match(
       css,
-      /html :is\(\[role="menu"\], \[role="listbox"\]\) \{\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\}/,
+      /html :is\(\[role="menu"\], \[role="listbox"\], \[data-radix-popper-content-wrapper\] > \*\) \{\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\}/,
+      "popper-positioned popups (menus, tooltips, popovers, selects) must not wait on a backdrop-filter raster",
+    );
+    assert.doesNotMatch(
+      css,
+      /data-lg-compact-solid="on"\] :is\([^{]*\[role="menu"\]/,
+      "the compact-solid rule must not re-blur menus and popups",
     );
     assert.match(
       css,

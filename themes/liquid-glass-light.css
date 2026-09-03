@@ -323,10 +323,12 @@ body { position: relative; isolation: isolate; background-color: var(--canvas); 
 :is([role="tooltip"], [data-radix-popper-content-wrapper] > .bg-primary) {
   color: var(--foreground);
 }
-/* Menus are opened directly from pointer input, so do not make their first
-   frame wait on an expensive backdrop-filter raster. Their near-opaque overlay
-   fill above still keeps the menu visually distinct from the active pane. */
-html :is([role="menu"], [role="listbox"]) {
+/* Menus, tooltips, popovers, and selects are opened directly from pointer
+   input, so do not make their first frame wait on an expensive backdrop-filter
+   raster. Their near-opaque overlay fill above still keeps them visually
+   distinct from the active pane. Dialogs, drawers, toasts, and the command
+   palette are not popper-positioned and keep their glass. */
+html :is([role="menu"], [role="listbox"], [data-radix-popper-content-wrapper] > *) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
@@ -390,10 +392,13 @@ html [data-follow-up-composer-footer] {
 /* The host's running-thread footer is a `bg-background` wrapper around the
    promptbox, with a sibling overflow fade. Clear that exact wrapper with
    important precedence: the host utility is loaded after plugin CSS in some
-   shells, and the original chrome rules must never repaint this dock. */
-html [data-thread-window] .bg-background:has(.chat-prompt-box),
-html [data-thread-window] .bg-background:has([data-promptbox-shell]),
-html [data-thread-window] .sticky.bottom-0 > .bg-sidebar:has([data-promptbox-shell]),
+   shells, and the original chrome rules must never repaint this dock.
+   Match the dock structurally (direct child of the sticky bottom dock), never
+   with `:has()`: a `:has()` anchored on `.bg-background` makes Chromium
+   re-match the whole pane on every class change or node insert inside it,
+   which turned each keystroke and every menu open into a full style recalc. */
+html [data-thread-window] .sticky.bottom-0 > .bg-background,
+html [data-thread-window] .sticky.bottom-0 > .bg-sidebar,
 html [data-thread-window] .chat-prompt-box {
   background-color: transparent !important;
   background-image: none !important;
@@ -401,9 +406,8 @@ html [data-thread-window] .chat-prompt-box {
   backdrop-filter: none !important;
   box-shadow: none !important;
 }
-html [data-thread-window] .bg-background:has(.chat-prompt-box) > [data-overflow-fade="above"],
-html [data-thread-window] .bg-background:has([data-promptbox-shell]) > [data-overflow-fade="above"],
-html [data-thread-window] .sticky.bottom-0 > .bg-sidebar:has([data-promptbox-shell]) > [data-overflow-fade="above"] {
+html [data-thread-window] .sticky.bottom-0 > .bg-background > [data-overflow-fade="above"],
+html [data-thread-window] .sticky.bottom-0 > .bg-sidebar > [data-overflow-fade="above"] {
   display: none !important;
 }
 /* Banners and the follow-up footer are part of this same dock; remove the
@@ -511,7 +515,7 @@ html [data-thread-window] .sticky.bottom-0 [data-overflow-fade="above"] {
     visibility: visible;
     transition: visibility 0s;
   }
-  html[data-lg-compact-solid="on"] :is(main[data-sidebar="inset"], [data-testid="root-compose-compact-home"], [data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root]) {
+  html[data-lg-compact-solid="on"] :is(main[data-sidebar="inset"], [data-testid="root-compose-compact-home"], [role="dialog"]:not([data-radix-popper-content-wrapper] > *), [data-bb-portaled-overlay], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root]) {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
     -webkit-backdrop-filter: blur(32px) saturate(1.2); backdrop-filter: blur(32px) saturate(1.2);
   }
