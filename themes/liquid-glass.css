@@ -1,0 +1,390 @@
+/* Liquid Glass — the monocode window, inside bb.
+ *
+ * monocode's look is a transparent macOS NSWindow over the real desktop plus
+ * native background blur. bb's Electron window is opaque, so this theme paints
+ * its own wallpaper layer on the window floor and makes every pane above it
+ * genuinely translucent with real backdrop blur, at monocode's own opacities
+ * (sidebar 0.85, blur 24px, shell hue 240 / saturation 0%).
+ *
+ * Every knob is a `--lg-*` custom property with a fallback, so the palette is
+ * complete on its own and the plugin's frontend only overrides values the user
+ * has actually changed. Internal `--glass-*` aliases resolve each knob once.
+ *
+ * Dark-only palette, so it claims .light as well as .dark (as ayu-mirage does).
+ */
+
+:root,
+.light,
+.dark {
+  color-scheme: dark;
+
+  /* ---- the knobs, resolved once with their monocode defaults ---- */
+  --glass-h: var(--lg-hue, 240);
+  --glass-s: var(--lg-sat, 0%);
+  --glass-l: 9%;
+  --glass-ink-l: 92%;
+  --glass-accent-h: var(--lg-accent-h, 211);
+  --glass-accent-s: var(--lg-accent-s, 92%);
+  --glass-accent-l: var(--lg-accent-l, 62%);
+  --glass-sidebar-a: var(--lg-sidebar-a, 0.85);
+  --glass-pane-a: var(--lg-pane-a, 0.85);
+  --glass-overlay-a: var(--lg-overlay-a, 0.94);
+
+  /* ---- anchors ---- */
+  --canvas: hsl(var(--glass-h) var(--glass-s) var(--glass-l));
+  --ink: hsl(var(--glass-h) var(--glass-s) var(--glass-ink-l));
+  --foreground: var(--ink);
+  --card-foreground: var(--ink);
+  --popover-foreground: var(--ink);
+  --sidebar-foreground: var(--ink);
+  --sidebar-accent-foreground: var(--ink);
+  --secondary-foreground: var(--ink);
+  --accent-foreground: var(--ink);
+
+  /* ---- accent ---- */
+  --primary: hsl(var(--glass-accent-h) var(--glass-accent-s) var(--glass-accent-l));
+  /* The frontend resolves arbitrary accents to AA-safe pairs. This fallback is
+     the maximum-contrast dark ink for the standalone default blue. */
+  --primary-foreground: hsl(0 0% var(--lg-primary-fg-l, 0%));
+  --ring: var(--primary);
+  --sidebar-ring: var(--primary);
+  --link-color: var(--primary);
+  --timeline-accent: var(--primary);
+  --file-accent: var(--primary);
+  --surface-selected: color-mix(in oklab, var(--primary) calc(14% * var(--lg-vibrancy, 70) / 70), transparent);
+  --surface-selected-border: color-mix(in oklab, var(--primary) calc(45% * var(--lg-vibrancy, 70) / 70), transparent);
+
+  /* ---- text tiers ---- */
+  --muted-foreground: hsl(var(--glass-h) var(--glass-s) 74%);
+  --readback-foreground: hsl(var(--glass-h) var(--glass-s) 69%);
+  --subtle-foreground: hsl(var(--glass-h) var(--glass-s) 65%);
+  --version-upgrade: hsl(var(--glass-h) var(--glass-s) 95%);
+
+  /* ---- the glass shell ---- */
+  --sidebar: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-sidebar-a));
+  --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a));
+  --card: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+  --popover: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+  --surface-scrim: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.55);
+  --surface-raised: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+  --surface-raised-solid: color-mix(in oklab, var(--ink) 4.5%, var(--canvas));
+  --surface-recessed: hsl(var(--glass-h) var(--glass-s) 0% / 0.3);
+  --surface-recessed-solid: color-mix(in oklab, #000000 30%, var(--canvas));
+  --surface-recessed-soft-solid: color-mix(in oklab, #000000 18%, var(--canvas));
+
+  /* ---- interactive states ---- */
+  --state-hover: color-mix(in oklab, var(--ink) 7%, transparent);
+  --state-active: color-mix(in oklab, var(--primary) calc(16% * var(--lg-vibrancy, 70) / 70), transparent);
+  --secondary: color-mix(in oklab, var(--primary) calc(18% * var(--lg-vibrancy, 70) / 70), var(--canvas));
+  --accent: color-mix(in oklab, var(--primary) calc(12% * var(--lg-vibrancy, 70) / 70), var(--canvas));
+  --muted: hsl(var(--glass-h) var(--glass-s) var(--glass-ink-l) / 0.12);
+  --input: hsl(var(--glass-h) var(--glass-s) var(--glass-ink-l) / 0.22);
+  --pill-surface-selected: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--primary) calc(18% * var(--lg-vibrancy, 70) / 70), var(--canvas)),
+    color-mix(in oklab, var(--primary) calc(18% * var(--lg-vibrancy, 70) / 70), var(--canvas))
+  );
+  --pill-surface-selected-border: color-mix(in oklab, var(--primary) calc(45% * var(--lg-vibrancy, 70) / 70), var(--canvas));
+  --pill-icon: var(--primary);
+
+  /* Focused rows paint --sidebar-accent at full strength and open-in-split rows
+     at a quarter of it, so the accent has to be strong enough that the two
+     cannot be confused. */
+  --sidebar-accent: hsl(var(--glass-h) var(--glass-s) var(--glass-ink-l) / 0.11);
+  --sidebar-search-match: hsl(45 90% 55% / 0.22);
+  --sidebar-search-match-border: hsl(45 90% 55% / 0.42);
+
+  /* ---- hairlines ---- */
+  --border: hsl(var(--glass-h) var(--glass-s) var(--glass-ink-l) / 0.12);
+  --border-hairline: hsl(var(--glass-h) var(--glass-s) var(--glass-ink-l) / 0.14);
+  --border-seam: hsl(var(--glass-h) var(--glass-s) var(--glass-ink-l) / 0.1);
+  --border-seam-vertical: var(--border-seam);
+  --sidebar-border: hsl(var(--glass-h) var(--glass-s) var(--glass-ink-l) / 0.1);
+
+  /* ---- vibrant semantics, from the nine-colour thread palette ---- */
+  --success: hsl(142 55% 50%);
+  --success-foreground: hsl(142 55% 12%);
+  --warning: hsl(45 90% 55%);
+  --warning-text: hsl(45 90% 62%);
+  --attention: hsl(25 85% 58%);
+  --destructive: hsl(12 80% 58%);
+  --destructive-foreground: hsl(12 60% 10%);
+  --destructive-text: hsl(12 85% 68%);
+  --diff-added: hsl(142 55% 50%);
+  --diff-removed: hsl(12 80% 58%);
+  --pr-merged: hsl(280 55% 62%);
+  --surface-attention: hsl(25 85% 58% / 0.16);
+  --surface-destructive: hsl(12 80% 58% / 0.14);
+  --surface-destructive-border: hsl(12 80% 58% / 0.32);
+
+  /* ---- terminal, same vivid family ---- */
+  --ansi-0: hsl(var(--glass-h) var(--glass-s) 11%);
+  --ansi-1: hsl(12 80% 58%);
+  --ansi-2: hsl(142 55% 50%);
+  --ansi-3: hsl(45 90% 55%);
+  --ansi-4: hsl(211 92% 62%);
+  --ansi-5: hsl(280 55% 62%);
+  --ansi-6: hsl(175 55% 48%);
+  --ansi-7: hsl(var(--glass-h) var(--glass-s) 78%);
+  --ansi-8: hsl(var(--glass-h) var(--glass-s) 45%);
+  --ansi-9: hsl(12 85% 68%);
+  --ansi-10: hsl(142 60% 60%);
+  --ansi-11: hsl(45 90% 65%);
+  --ansi-12: hsl(211 92% 72%);
+  --ansi-13: hsl(280 60% 72%);
+  --ansi-14: hsl(175 60% 60%);
+  --ansi-15: hsl(var(--glass-h) var(--glass-s) 92%);
+  --ansi-bg-fg-0: hsl(var(--glass-h) var(--glass-s) 92%);
+  --ansi-bg-fg-1: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-2: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-3: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-4: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-5: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-6: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-7: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-8: hsl(var(--glass-h) var(--glass-s) 92%);
+  --ansi-bg-fg-9: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-10: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-11: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-12: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-13: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-14: hsl(var(--glass-h) var(--glass-s) 8%);
+  --ansi-bg-fg-15: hsl(var(--glass-h) var(--glass-s) 8%);
+
+  /* ---- wallpaper presets ---- */
+  --glass-aurora:
+    radial-gradient(1200px 900px at 12% 8%, hsl(178 85% 38% / 0.55), transparent 62%),
+    radial-gradient(1100px 850px at 88% 18%, hsl(272 80% 52% / 0.55), transparent 60%),
+    radial-gradient(1000px 800px at 62% 96%, hsl(318 85% 55% / 0.45), transparent 62%),
+    linear-gradient(160deg, hsl(215 60% 12%), hsl(258 55% 16%) 55%, hsl(300 45% 14%));
+  --glass-forest:
+    radial-gradient(1100px 800px at 8% 4%, hsl(202 90% 58% / 0.5), transparent 60%),
+    radial-gradient(1200px 900px at 78% 88%, hsl(142 70% 34% / 0.6), transparent 62%),
+    radial-gradient(900px 700px at 40% 42%, hsl(96 60% 42% / 0.35), transparent 65%),
+    linear-gradient(170deg, hsl(190 45% 12%), hsl(150 45% 12%));
+  --glass-sunset:
+    radial-gradient(1200px 850px at 18% 92%, hsl(12 90% 58% / 0.6), transparent 62%),
+    radial-gradient(1000px 800px at 82% 12%, hsl(38 95% 58% / 0.5), transparent 60%),
+    radial-gradient(1100px 900px at 55% 50%, hsl(288 70% 52% / 0.4), transparent 66%),
+    linear-gradient(200deg, hsl(268 50% 16%), hsl(18 55% 16%));
+  --glass-ocean:
+    radial-gradient(1200px 900px at 14% 10%, hsl(196 95% 52% / 0.5), transparent 62%),
+    radial-gradient(1100px 850px at 86% 82%, hsl(224 85% 48% / 0.55), transparent 60%),
+    radial-gradient(900px 700px at 60% 30%, hsl(172 80% 46% / 0.35), transparent 64%),
+    linear-gradient(165deg, hsl(214 60% 10%), hsl(196 55% 14%));
+  --glass-mono:
+    radial-gradient(1200px 900px at 20% 8%, hsl(0 0% 62% / 0.35), transparent 62%),
+    radial-gradient(1000px 800px at 82% 88%, hsl(0 0% 40% / 0.4), transparent 60%),
+    linear-gradient(170deg, hsl(0 0% 16%), hsl(0 0% 9%));
+}
+
+/* The window floor, on `html` so it sits below every pane: an opaque canvas
+   that can never show a hole, the wallpaper image over it, and the dim overlay
+   listed first so it composites on top of the wallpaper. */
+html {
+  position: relative;
+  isolation: isolate;
+  background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l));
+}
+
+body::before,
+body::after {
+  position: fixed;
+  content: "";
+  pointer-events: none;
+}
+
+body::before {
+  z-index: -2;
+  inset: calc(-1 * var(--lg-wp-blur, 0px));
+  background-image: var(--lg-wallpaper, var(--glass-aurora));
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover, cover;
+  background-attachment: fixed, fixed;
+  filter: brightness(var(--lg-wp-brightness, 1)) saturate(var(--lg-wp-sat, 1.1)) blur(var(--lg-wp-blur, 0px));
+}
+
+body::after {
+  z-index: -1;
+  inset: 0;
+  background: hsl(0 0% 0% / var(--lg-dim, 0.35));
+}
+
+/* One tint layer between the wallpaper and the content, not four.
+   bb paints `body` with `bg-background` (`@layer base` in the host's theme.css)
+   and paints the main pane's `<main data-sidebar="inset">` with `bg-background`
+   again, so leaving `body` alone composites the pane tint twice and only
+   0.15 x 0.15 = 2.25% of the wallpaper survives. `html` already carries the
+   opaque canvas plus the wallpaper, so `body` has nothing left to paint.
+   This rule is unlayered and therefore beats the host's `@layer base` body
+   rule regardless of injection order. */
+body {
+  background-color: transparent;
+}
+
+html[data-lg-wallpaper="aurora"] { --lg-wallpaper: var(--glass-aurora); }
+html[data-lg-wallpaper="forest"] { --lg-wallpaper: var(--glass-forest); }
+html[data-lg-wallpaper="sunset"] { --lg-wallpaper: var(--glass-sunset); }
+html[data-lg-wallpaper="ocean"] { --lg-wallpaper: var(--glass-ocean); }
+html[data-lg-wallpaper="mono"] { --lg-wallpaper: var(--glass-mono); }
+
+/* A user image or URL, supplied by the frontend as an url()/image-set(). */
+html[data-lg-wallpaper="custom"] {
+  --lg-wallpaper: var(--lg-wallpaper-custom, var(--glass-aurora));
+}
+
+/* monocode's "Main pane glass" toggle. The default matches monocode's own
+   default (on); switching it off holds the main pane near-opaque so long
+   transcripts stay readable over a busy wallpaper. */
+html[data-lg-pane-glass="on"] {
+  --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a));
+  --card: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+  --popover: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+}
+
+html[data-lg-pane-glass="off"] {
+  --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
+  --card: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+  --popover: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+}
+
+html[data-lg-pane-glass="on"] main[data-sidebar="inset"] {
+  -webkit-backdrop-filter: blur(var(--lg-pane-blur, 24px)) saturate(1.2);
+  backdrop-filter: blur(var(--lg-pane-blur, 24px)) saturate(1.2);
+}
+
+/* Frosted panes. The sidebar is one structural element, so real blur is cheap;
+   the wallpaper refracts through it instead of merely tinting it. */
+.bg-sidebar {
+  -webkit-backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
+  backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
+}
+
+.bg-popover,
+.bg-card {
+  -webkit-backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
+  backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
+}
+
+/* The same collapse for the sidebar, which nests four `bg-sidebar` elements:
+   the fixed panel, its inner column, SidebarContent, and every sticky tier.
+   Stacked, 0.85 four times leaves 0.15^4 = 0.05% of the wallpaper — an opaque
+   theme wearing a glass name — and runs the blur three times over. Only the
+   outermost `.bg-sidebar` tints and blurs; every nested one is a pass-through. */
+.bg-sidebar .bg-sidebar {
+  background-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Sticky headers are the one nested layer that must stay tinted: they have to
+   hide the rows scrolling under them. They keep the sidebar tint and get their
+   own blur, so scrolled text diffuses instead of ghosting through. */
+.bg-sidebar .sticky.bg-sidebar,
+.bg-sidebar [data-sidebar-sticky-tier] {
+  background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-sidebar-a));
+  -webkit-backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
+  backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
+}
+
+/* Hairline top light — the lit edge of a sheet of glass. */
+.bg-popover {
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.06),
+    var(--shadow-md, 0 4px 16px hsl(0 0% 0% / 0.4));
+}
+
+/* Strong, chromatic controls. bb's default button variant is `bg-foreground`,
+   while plugin actions often use `bg-primary`, so both consume the same vivid
+   pair. Checked toggles and active tabs follow the accent grammar too. */
+button.bg-primary,
+button.bg-foreground {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+button.bg-primary:hover,
+button.bg-foreground:hover {
+  background-color: color-mix(in oklab, var(--primary) 90%, transparent);
+}
+
+button[role="switch"][data-state="checked"],
+button[role="switch"][aria-checked="true"] {
+  background-color: var(--primary);
+}
+
+[role="tab"][data-state="active"] {
+  background-color: var(--secondary);
+  box-shadow: inset 0 0 0 1px var(--surface-selected-border);
+}
+
+:where(button, input, textarea, select, [role="button"], [role="switch"], [role="tab"], [tabindex]):focus-visible {
+  outline-color: var(--ring);
+  --tw-ring-color: var(--ring);
+}
+
+/* Sidebar row states. focused carries a solid accent rail, open-in-split a
+   primary-tinted wash and a dashed outline — different grammar, not a different
+   alpha, so the two states can never read as the same row. Keyed on the host's
+   own classes and on the bb-sidebar plugin's data attribute, so it reads in
+   either thread list. */
+.bb-sidebar-open-in-split-row {
+  --bb-sidebar-open-in-split-background: color-mix(in oklab, var(--primary) 10%, var(--sidebar));
+  outline: 1px dashed color-mix(in oklab, var(--primary) 50%, transparent);
+  outline-offset: -1px;
+}
+
+.bb-sidebar-selected-row {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+[data-thread-pane-state="focused"] {
+  box-shadow: inset 3px 0 0 var(--thread-accent, var(--primary));
+}
+
+/* Sheets sit over content, so they use strong fixed blur and the independent
+   overlay opacity instead of inheriting base-pane translucency. */
+body { position: relative; isolation: isolate; background-color: var(--canvas); }
+[data-testid="route-loading-skeleton"] { background-color: var(--canvas); }
+:is([data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-secondary-panel-shelf], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root], [data-testid="root-compose-compact-home"], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], [data-promptbox], button[aria-label="Scroll to latest event"]) {
+  background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+  -webkit-backdrop-filter: blur(32px) saturate(1.2);
+  backdrop-filter: blur(32px) saturate(1.2);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.06);
+}
+header.bg-surface-scrim {
+  background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
+  -webkit-backdrop-filter: blur(32px) saturate(1.2);
+  backdrop-filter: blur(32px) saturate(1.2);
+  box-shadow: inset 0 -1px 0 hsl(0 0% 100% / 0.06);
+}
+@media (max-width: 767px), (pointer: coarse) {
+  html[data-lg-compact-solid="on"] :is(main[data-sidebar="inset"], [data-testid="root-compose-compact-home"], [data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-secondary-panel-shelf], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], [data-promptbox], button[aria-label="Scroll to latest event"], header.bg-surface-scrim) {
+    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
+    -webkit-backdrop-filter: blur(32px) saturate(1.2); backdrop-filter: blur(32px) saturate(1.2);
+  }
+  html :is([data-sidebar="sidebar"], [data-sidebar="sidebar"][data-mobile="true"], [data-sidebar="panel"][data-vaul-drawer-direction]) {
+    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-sidebar-a, 0.85));
+    -webkit-backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3); backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
+  }
+}
+
+/* Without backdrop-filter there is no blur to separate a pane from the
+   wallpaper, so the panes stop pretending to be glass. */
+@supports not (backdrop-filter: blur(1px)) {
+  :root,
+  .light,
+  .dark {
+    --sidebar: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
+    --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
+    --card: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
+    --popover: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
+    --surface-raised: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
+  }
+
+  html[data-lg-pane-glass="on"],
+  html[data-lg-pane-glass="off"] {
+    --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "name": "Liquid Glass Dark",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#171717",
+    "editor.foreground": "#ebebeb",
+    "editorLineNumber.foreground": "#6e6e6e",
+    "editorLineNumber.activeForeground": "#bdbdbd",
+    "editor.selectionBackground": "#459bf74d",
+    "editor.inactiveSelectionBackground": "#ebebeb17",
+    "editor.lineHighlightBackground": "#ebebeb0a",
+    "editorCursor.foreground": "#459bf7",
+    "editorWhitespace.foreground": "#2b2b2b"
+  },
+  "tokenColors": [
+    {
+      "scope": ["comment", "punctuation.definition.comment"],
+      "settings": { "foreground": "#9a9a9a", "fontStyle": "italic" }
+    },
+    {
+      "scope": ["string", "string.quoted", "string.template", "punctuation.definition.string"],
+      "settings": { "foreground": "#e8c547" }
+    },
+    {
+      "scope": ["keyword", "storage", "storage.type", "storage.modifier", "variable.language"],
+      "settings": { "foreground": "#ff8a86" }
+    },
+    {
+      "scope": ["entity.name.function", "support.function", "meta.function-call", "variable.function"],
+      "settings": { "foreground": "#c8aaf5" }
+    },
+    {
+      "scope": ["entity.name.type", "entity.name.class", "support.type", "support.class", "entity.name.namespace"],
+      "settings": { "foreground": "#5ccfe6" }
+    },
+    {
+      "scope": ["constant", "constant.numeric", "constant.language", "support.constant"],
+      "settings": { "foreground": "#7dd3fc" }
+    },
+    {
+      "scope": ["variable.other.property", "meta.object-literal.key", "support.type.property-name", "entity.other.attribute-name"],
+      "settings": { "foreground": "#7dd3fc" }
+    },
+    {
+      "scope": ["entity.name.tag", "punctuation.definition.tag"],
+      "settings": { "foreground": "#459bf7" }
+    },
+    {
+      "scope": ["markup.heading", "markup.bold"],
+      "settings": { "foreground": "#ebebeb", "fontStyle": "bold" }
+    },
+    {
+      "scope": ["markup.italic"],
+      "settings": { "foreground": "#bdbdbd", "fontStyle": "italic" }
+    },
+    {
+      "scope": ["markup.inserted", "meta.diff.header.to-file"],
+      "settings": { "foreground": "#6bd18a" }
+    },
+    {
+      "scope": ["markup.deleted", "meta.diff.header.from-file"],
+      "settings": { "foreground": "#f07b73" }
+    },
+    {
+      "scope": ["punctuation", "meta.brace"],
+      "settings": { "foreground": "#a3a3a3" }
+    }
+  ]
+}
