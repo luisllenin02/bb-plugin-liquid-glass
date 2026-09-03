@@ -407,6 +407,20 @@ html [data-thread-window] [data-follow-up-composer-footer] {
   backdrop-filter: none !important;
   box-shadow: none !important;
 }
+/* The production footer is mounted as the direct child of a sticky dock. Use
+   that stable relationship as a final escape hatch: it avoids relying on
+   ancestor `:has()` matching in embedded Chromium shells and clears the host
+   utility that paints the dark bottom band. */
+html [data-thread-window] .sticky.bottom-0,
+html [data-thread-window] .sticky.bottom-0 > .bg-background {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+html [data-thread-window] .sticky.bottom-0 [data-overflow-fade="above"] {
+  display: none !important;
+}
 @media (max-width: 767px), (pointer: coarse) {
   /* The host keeps the mobile sidebar panel fixed under the left edge of the
      page at all times (z-0, the page slides right to reveal it); through the
