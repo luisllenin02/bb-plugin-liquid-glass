@@ -309,7 +309,8 @@ button[role="switch"][aria-checked="true"] {
   box-shadow: inset 3px 0 0 var(--thread-accent, var(--primary));
 }
 
-/* Sheets stay solid; pane chrome fades its tint and blur into pane glass. */
+/* Sheets stay solid; pane chrome fades only its tint into pane glass. The
+   constant blur stays on the host element so sticky/flex layout is untouched. */
 body { position: relative; isolation: isolate; background-color: var(--canvas); }
 [data-testid="route-loading-skeleton"] { background-color: var(--canvas); }
 :is([data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root], [data-testid="root-compose-compact-home"]) {
@@ -325,39 +326,21 @@ body { position: relative; isolation: isolate; background-color: var(--canvas); 
 }
 :is(header.bg-surface-scrim, [data-secondary-panel-shelf]),
 :is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
-  isolation: isolate;
   background-color: transparent;
-  background-repeat: no-repeat;
-  background-size: 100% var(--lg-chrome-fade, 40px), 100% 100%;
-  box-shadow: none;
-}
-:is(header.bg-surface-scrim, [data-secondary-panel-shelf]) {
-  background-image:
-    linear-gradient(to bottom, transparent calc(66.667% - 1px), hsl(0 0% 100% / 0.06) 66.667%, transparent 100%),
-    linear-gradient(to bottom, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a)) var(--lg-chrome-fade, 40px));
-  background-position: top, center;
-}
-:is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
-  background-image:
-    linear-gradient(to top, transparent calc(66.667% - 1px), hsl(0 0% 100% / 0.06) 66.667%, transparent 100%),
-    linear-gradient(to top, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a)) var(--lg-chrome-fade, 40px));
-  background-position: bottom, center;
-}
-:is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"])::before {
-  position: absolute;
-  content: "";
-  pointer-events: none;
-  inset: 0;
   -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
   backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
-:is(header.bg-surface-scrim, [data-secondary-panel-shelf])::before {
-  -webkit-mask-image: linear-gradient(to bottom, #000 0, transparent var(--lg-chrome-fade, 40px));
-  mask-image: linear-gradient(to bottom, #000 0, transparent var(--lg-chrome-fade, 40px));
+:is(header.bg-surface-scrim, [data-secondary-panel-shelf]) {
+  background-image: linear-gradient(to bottom, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a)) var(--lg-chrome-fade, 40px));
+  background-position: top;
+  box-shadow: inset 0 -1px 0 hsl(0 0% 100% / 0.06);
 }
-:is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"])::before {
-  -webkit-mask-image: linear-gradient(to top, #000 0, transparent var(--lg-chrome-fade, 40px));
-  mask-image: linear-gradient(to top, #000 0, transparent var(--lg-chrome-fade, 40px));
+:is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
+  background-image: linear-gradient(to top, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a)) var(--lg-chrome-fade, 40px));
+  background-position: bottom;
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.06);
 }
 @media (max-width: 767px), (pointer: coarse) {
   html[data-lg-compact-solid="on"] :is(main[data-sidebar="inset"], [data-testid="root-compose-compact-home"], [data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root]) {
@@ -375,7 +358,6 @@ body { position: relative; isolation: isolate; background-color: var(--canvas); 
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 1);
     background-image: none;
   }
-  :is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"])::before { display: none; }
 }
 
 /* Without backdrop-filter there is no blur to separate a pane from the

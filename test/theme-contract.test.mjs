@@ -47,7 +47,7 @@ test("manifest contributes both Liquid Glass palettes plus a server and an app",
   }
   assert.equal(manifest.engines.bb, ">=0.41");
   assert.equal(manifest.engines.bbPluginSdk, ">=0.4.8");
-  assert.equal(manifest.version, "0.5.2");
+  assert.equal(manifest.version, "0.5.3");
   assert.ok(manifest.dependencies.zod, "zod must be a runtime dependency");
   for (const dependency of ["clsx", "tailwind-merge"]) {
     assert.ok(
@@ -282,7 +282,7 @@ for (const [mode, css] of Object.entries(palettes)) {
     );
   });
 
-  test(`${mode} palette keeps sheets solid and fades sticky chrome`, () => {
+  test(`${mode} palette keeps sheets solid and fades chrome backgrounds without touching layout`, () => {
     for (const selector of [
       '[data-radix-popper-content-wrapper] > *', '[role="dialog"]',
       '[role="menu"]', '[role="listbox"]', '[data-bb-portaled-overlay]',
@@ -301,14 +301,14 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(css, /@media \(max-width: 767px\), \(pointer: coarse\)/);
     assert.match(css, /data-lg-compact-solid="on"[\s\S]*?\/ 0\.96\)/);
     const chrome = css.slice(css.indexOf(":is(header.bg-surface-scrim"), css.indexOf("@media (max-width: 767px)"));
-    const chromeRoots = chrome.match(/^:is\(header\.bg-surface-scrim,[\s\S]*?^}\n/m)?.[0] ?? "";
-    assert.ok(chromeRoots, "shared sticky and floating chrome rule must exist");
-    assert.doesNotMatch(chromeRoots, /(?:^|;)\s*position\s*:/m, "chrome roots must preserve host positioning");
-    assert.match(chrome, /background-image:[\s\S]*linear-gradient[\s\S]*var\(--lg-chrome-a, 0\.72\)[\s\S]*var\(--lg-chrome-fade, 40px\)/);
     assert.match(chrome, /backdrop-filter: blur\(var\(--lg-chrome-blur, 20px\)\)/);
-    assert.match(chrome, /-webkit-mask-image:[\s\S]*mask-image:/);
+    assert.match(chrome, /:is\(header\.bg-surface-scrim, \[data-secondary-panel-shelf\]\) \{[\s\S]*?linear-gradient\(to bottom,[\s\S]*?var\(--lg-chrome-fade, 40px\)[\s\S]*?box-shadow: inset 0 -1px 0/);
+    assert.match(chrome, /:is\(\[data-testid="root-compose-compact-composer"\],[\s\S]*?\) \{[\s\S]*?linear-gradient\(to top,[\s\S]*?var\(--lg-chrome-fade, 40px\)[\s\S]*?box-shadow: inset 0 1px 0/);
+    assert.doesNotMatch(chrome, /::before|::after|(?:-webkit-)?mask-image/);
+    assert.doesNotMatch(chrome, /(?:^|;)\s*(?:position|inset|display|overflow|contain|isolation|height|min-height|flex|transform)\s*:/m);
     assert.doesNotMatch(chrome, /--glass-overlay-a/);
     assert.match(css, /\[data-promptbox\][\s\S]*min\(1, calc\(var\(--lg-chrome-a, 0\.72\) \+ 0\.12\)\)/);
+    assert.match(css, /\[data-promptbox\] \{[^}]*background-color:[^}]*\}/);
     assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*background-image: none/);
     for (const token of ["--card", "--popover", "--surface-raised"]) {
       assert.match(decls.get(token), /var\(--glass-overlay-a\)/);
