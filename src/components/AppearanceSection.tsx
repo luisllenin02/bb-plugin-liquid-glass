@@ -11,7 +11,7 @@ import {
   type BbThemeMode,
 } from "../theme-mode.js";
 import { ActionButton } from "./rows.js";
-import { ComposerDockRow } from "./ComposerDockRow.js";
+import { ComposerDockRow, ContextMeterRow } from "./ComposerDockRow.js";
 import { AccentPicker } from "./colours/AccentPicker.js";
 import { AdvancedControls } from "./colours/AdvancedControls.js";
 import { GlassControls } from "./colours/GlassControls.js";
@@ -132,6 +132,7 @@ export function AppearanceSection() {
 
       <Section title="Composer" hint="What sits between the chat and the prompt box.">
         <ComposerDockRow />
+        <ContextMeterRow />
       </Section>
 
       <AdvancedControls appearance={appearance} onChange={apply} />

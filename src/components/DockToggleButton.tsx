@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -13,22 +13,28 @@ import {
 import { cn } from "../lib/utils.js";
 
 /**
- * One glyph per state, each showing the next step and drawn on the host's
- * 24-grid at its stroke. Cards: double chevron up (tuck into a deck). Stack:
- * chevron up onto a bar (hide into pills). Pills: double chevron down (show
- * the cards again).
+ * One glyph per state, drawn on the host's 24-grid at its stroke. Cards:
+ * double chevron up (tuck into a deck). Stack: chevron up onto a bar (hide
+ * into pills). Pills: a row of three dots, the pills themselves (show the
+ * cards again).
  */
-const GLYPHS: Record<DockPresentation, { path: string; label: string }> = {
+const GLYPHS: Record<DockPresentation, { mark: ReactNode; label: string }> = {
   cards: {
-    path: "M18 13s-4.4 5-6 5-6-5-6-5M18 6s-4.4 5-6 5-6-5-6-5",
+    mark: <path d="M18 13s-4.4 5-6 5-6-5-6-5M18 6s-4.4 5-6 5-6-5-6-5" />,
     label: "Tuck status cards behind the prompt box",
   },
   stack: {
-    path: "M6 5h12M18 17s-4.4-5-6-5-6 5-6 5",
+    mark: <path d="M6 5h12M18 17s-4.4-5-6-5-6 5-6 5" />,
     label: "Hide status cards into pills",
   },
   pills: {
-    path: "M6 11s4.4-5 6-5 6 5 6 5M6 18s4.4-5 6-5 6 5 6 5",
+    mark: (
+      <>
+        <circle cx="5.5" cy="12" r="1.9" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none" />
+        <circle cx="18.5" cy="12" r="1.9" fill="currentColor" stroke="none" />
+      </>
+    ),
     label: "Show status cards",
   },
 };
@@ -109,7 +115,7 @@ export function DockToggleButton() {
     };
   }, []);
 
-  const { path, label } = GLYPHS[presentation];
+  const { mark, label } = GLYPHS[presentation];
   const glyph =
     mount && cards
       ? createPortal(
@@ -139,7 +145,7 @@ export function DockToggleButton() {
               aria-hidden="true"
               className="size-3.5"
             >
-              <path d={path} />
+              {mark}
             </svg>
           </button>,
           mount,
