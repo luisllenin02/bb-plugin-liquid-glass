@@ -386,6 +386,7 @@ html [data-follow-up-composer-footer] {
    shells, and the original chrome rules must never repaint this dock. */
 html [data-thread-window] .bg-background:has(.chat-prompt-box),
 html [data-thread-window] .bg-background:has([data-promptbox-shell]),
+html [data-thread-window] .bg-sidebar:has([data-promptbox-shell]),
 html [data-thread-window] .chat-prompt-box {
   background-color: transparent !important;
   background-image: none !important;
@@ -394,7 +395,8 @@ html [data-thread-window] .chat-prompt-box {
   box-shadow: none !important;
 }
 html [data-thread-window] .bg-background:has(.chat-prompt-box) > [data-overflow-fade="above"],
-html [data-thread-window] .bg-background:has([data-promptbox-shell]) > [data-overflow-fade="above"] {
+html [data-thread-window] .bg-background:has([data-promptbox-shell]) > [data-overflow-fade="above"],
+html [data-thread-window] .bg-sidebar:has([data-promptbox-shell]) > [data-overflow-fade="above"] {
   display: none !important;
 }
 /* Banners and the follow-up footer are part of this same dock; remove the
@@ -464,7 +466,8 @@ html [data-thread-window][data-lg-thread-composer-collapsed]
    ancestor `:has()` matching in embedded Chromium shells and clears the host
    utility that paints the dark bottom band. */
 html [data-thread-window] .sticky.bottom-0,
-html [data-thread-window] .sticky.bottom-0 > .bg-background {
+html [data-thread-window] .sticky.bottom-0 > .bg-background,
+html [data-thread-window] .sticky.bottom-0 > .bg-sidebar {
   background: transparent !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
