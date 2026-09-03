@@ -26,7 +26,8 @@ for (const file of palettes) {
     assert.match(solidRule[1], /main\[data-sidebar="inset"\]/);
     assert.match(solidRule[1], /root-compose-compact-home/);
     assert.match(solidRule[1], /\[role="dialog"\]/);
-    assert.match(solidRule[1], /\[data-app-composer\]/);
+    assert.doesNotMatch(solidRule[1], /\[data-app-composer\]/);
+    assert.match(css, /\[data-app-composer\][\s\S]*var\(--lg-chrome-a, 0\.72\)/);
     assert.match(solidRule[1], /\[data-vaul-drawer-direction\]:not\(\[data-sidebar="panel"\]\)/);
     assert.doesNotMatch(solidRule[1], /\[data-sidebar="sidebar"\]/);
     assert.doesNotMatch(solidRule[1], /\[data-sidebar="panel"\]\[data-vaul-drawer-direction\]/);

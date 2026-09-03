@@ -22,6 +22,7 @@ export function GlassControls({
   const opacityPercent = Math.round(appearance.sidebarOpacity * 100);
   const paneOpacityPercent = Math.round(appearance.paneOpacity * 100);
   const overlayOpacityPercent = Math.round(appearance.overlayOpacity * 100);
+  const chromeOpacityPercent = Math.round(appearance.chromeOpacity * 100);
   return (
     <div>
       <Row
@@ -83,7 +84,8 @@ export function GlassControls({
           />
         </Row>
       </fieldset>
-      <Row label="Overlay opacity" description="Keeps menus, sheets, and sticky chrome unreadable through the glass.">
+      <h3 className="pt-2 text-sm font-medium text-foreground">Sheets and chrome</h3>
+      <Row label="Overlay opacity" description="Keeps menus and sheets unreadable through the glass.">
         <Slider
           label="Overlay opacity"
           value={overlayOpacityPercent}
@@ -91,6 +93,36 @@ export function GlassControls({
           min={Math.round(RANGES.overlayOpacity.min * 100)}
           max={Math.round(RANGES.overlayOpacity.max * 100)}
           onChange={(percent) => onChange({ overlayOpacity: percent / 100 })}
+        />
+      </Row>
+      <Row label="Chrome opacity" description="Frost strength at the pane's outer edge.">
+        <Slider
+          label="Chrome opacity"
+          value={chromeOpacityPercent}
+          display={`${chromeOpacityPercent}%`}
+          min={Math.round(RANGES.chromeOpacity.min * 100)}
+          max={Math.round(RANGES.chromeOpacity.max * 100)}
+          onChange={(percent) => onChange({ chromeOpacity: percent / 100 })}
+        />
+      </Row>
+      <Row label="Chrome fade" description="Distance over which chrome fades into pane glass.">
+        <Slider
+          label="Chrome fade"
+          value={Math.round(appearance.chromeFade)}
+          display={`${Math.round(appearance.chromeFade)} px`}
+          min={RANGES.chromeFade.min}
+          max={RANGES.chromeFade.max}
+          onChange={(chromeFade) => onChange({ chromeFade })}
+        />
+      </Row>
+      <Row label="Chrome blur" description="Backdrop blur at the pane's outer edge.">
+        <Slider
+          label="Chrome blur"
+          value={Math.round(appearance.chromeBlur)}
+          display={`${Math.round(appearance.chromeBlur)} px`}
+          min={RANGES.chromeBlur.min}
+          max={RANGES.chromeBlur.max}
+          onChange={(chromeBlur) => onChange({ chromeBlur })}
         />
       </Row>
       <Row label="Compact solid panes" description="Main pane and sheets go near-solid on phones; the sidebar keeps its glass.">

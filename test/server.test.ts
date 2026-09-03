@@ -49,6 +49,9 @@ describe("getAppearance", () => {
       paneOpacity: 0.85,
       paneBlur: 24,
       overlayOpacity: 0.94,
+      chromeOpacity: 0.72,
+      chromeFade: 40,
+      chromeBlur: 20,
       compactSolidPanes: true,
       wallpaperBrightness: 1,
       wallpaperBlur: 0,
@@ -80,6 +83,9 @@ describe("setAppearance", () => {
       wallpaperSaturation: 0,
       interactiveVibrancy: 100,
       overlayOpacity: 1,
+      chromeOpacity: 0.3,
+      chromeFade: 96,
+      chromeBlur: 48,
       compactSolidPanes: false,
     };
     await expect(harness.behavior.callRpc("setAppearance", patch)).resolves.toMatchObject(
@@ -101,6 +107,12 @@ describe("setAppearance", () => {
       { paneBlur: 65 },
       { overlayOpacity: 0.84 },
       { overlayOpacity: 1.01 },
+      { chromeOpacity: 0.29 },
+      { chromeOpacity: 1.01 },
+      { chromeFade: -1 },
+      { chromeFade: 97 },
+      { chromeBlur: -1 },
+      { chromeBlur: 49 },
       { wallpaperBrightness: 0.29 },
       { wallpaperBrightness: 1.61 },
       { wallpaperBlur: -1 },
@@ -222,6 +234,12 @@ describe("the bb liquid-glass command", () => {
     ]);
     expect(overlayOpacity.exitCode).toBe(0);
     expect(overlayOpacity.stdout).toContain("0.97");
+
+    for (const [key, value] of [["chromeOpacity", "0.72"], ["chromeFade", "40"], ["chromeBlur", "20"]]) {
+      const chrome = await harness.behavior.runCli(["set", key, value]);
+      expect(chrome.exitCode).toBe(0);
+      expect(chrome.stdout).toContain(value);
+    }
 
     const compact = await harness.behavior.runCli([
       "set",

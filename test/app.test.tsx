@@ -56,6 +56,9 @@ describe("the Liquid Glass settings section", () => {
       "Pane opacity",
       "Pane blur",
       "Overlay opacity",
+      "Chrome opacity",
+      "Chrome fade",
+      "Chrome blur",
       "Compact solid panes",
       "Accent",
       "Wallpaper",
@@ -130,18 +133,24 @@ describe("the Liquid Glass settings section", () => {
     dragged.lifecycle.unmount();
   });
 
-  it("writes overlay opacity and the compact solid panes toggle", async () => {
+  it("writes overlay controls and clamps all three chrome rows", async () => {
     const slot = renderSection();
     fireEvent.change(await slot.findByLabelText("Overlay opacity"), {
       target: { value: "97" },
     });
     fireEvent.click(await slot.findByLabelText("Compact solid panes"));
+    fireEvent.change(await slot.findByLabelText("Chrome opacity"), { target: { value: "999" } });
+    fireEvent.change(await slot.findByLabelText("Chrome fade"), { target: { value: "999" } });
+    fireEvent.change(await slot.findByLabelText("Chrome blur"), { target: { value: "999" } });
     await waitFor(() => {
       const writes = slot.inspection.rpcCalls
         .filter((call) => call.method === "setAppearance")
         .map((call) => call.input);
       expect(writes).toContainEqual({ overlayOpacity: 0.97 });
       expect(writes).toContainEqual({ compactSolidPanes: false });
+      expect(writes).toContainEqual({ chromeOpacity: 1 });
+      expect(writes).toContainEqual({ chromeFade: 96 });
+      expect(writes).toContainEqual({ chromeBlur: 48 });
     });
     slot.lifecycle.unmount();
   });

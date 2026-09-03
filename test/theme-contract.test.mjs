@@ -30,8 +30,6 @@ import {
   wallpaperTransmission,
 } from "./css.mjs";
 
-/* ---------- the contract ---------- */
-
 test("manifest contributes both Liquid Glass palettes plus a server and an app", () => {
   assert.equal(manifest.name, "bb-plugin-liquid-glass");
   assert.equal(manifest.bb.server, "./server.ts");
@@ -49,10 +47,8 @@ test("manifest contributes both Liquid Glass palettes plus a server and an app",
   }
   assert.equal(manifest.engines.bb, ">=0.41");
   assert.equal(manifest.engines.bbPluginSdk, ">=0.4.8");
-  assert.equal(manifest.version, "0.5.1");
+  assert.equal(manifest.version, "0.5.2");
   assert.ok(manifest.dependencies.zod, "zod must be a runtime dependency");
-  // clsx and tailwind-merge are host-provided at runtime (the app bundle uses
-  // bb's installed copies); `bb plugin types` pins them as devDependencies.
   for (const dependency of ["clsx", "tailwind-merge"]) {
     assert.ok(
       manifest.dependencies[dependency] || manifest.devDependencies[dependency],
@@ -90,9 +86,7 @@ for (const [mode, css] of Object.entries(palettes)) {
     for (const token of REQUIRED_TOKENS) {
       assert.ok(decls.has(token), `${token} must be declared`);
     }
-    // Theme CSS is plain CSS: no Tailwind directives, no @theme, no script.
     assert.doesNotMatch(css, /@theme|@apply|@tailwind|<script/);
-    // The Fonts plugin owns typography.
     assert.doesNotMatch(css, /font-family/);
   });
 
@@ -103,7 +97,6 @@ for (const [mode, css] of Object.entries(palettes)) {
         `${knob} must be referenced with a fallback`,
       );
     }
-    // No bare --lg-* reference anywhere: the palette has to stand alone.
     for (const [, reference] of css.matchAll(/var\(\s*(--lg-[\w-]+)\s*\)/g)) {
       assert.fail(`${reference} is referenced without a fallback`);
     }
@@ -122,6 +115,9 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.equal(knobDefault(css, "--lg-sidebar-a"), "0.85");
     assert.equal(knobDefault(css, "--lg-pane-a"), "0.85");
     assert.equal(knobDefault(css, "--lg-overlay-a"), "0.94");
+    assert.equal(knobDefault(css, "--lg-chrome-a"), "0.72");
+    assert.equal(knobDefault(css, "--lg-chrome-fade"), "40px");
+    assert.equal(knobDefault(css, "--lg-chrome-blur"), "20px");
     assert.equal(knobDefault(css, "--lg-hue"), "240");
     assert.equal(knobDefault(css, "--lg-sat"), "0%");
     assert.equal(knobDefault(css, "--lg-accent-h"), "211");
@@ -286,7 +282,7 @@ for (const [mode, css] of Object.entries(palettes)) {
     );
   });
 
-  test(`${mode} palette makes overlays and sticky chrome frosted sheets`, () => {
+  test(`${mode} palette keeps sheets solid and fades sticky chrome`, () => {
     for (const selector of [
       '[data-radix-popper-content-wrapper] > *', '[role="dialog"]',
       '[role="menu"]', '[role="listbox"]', '[data-bb-portaled-overlay]',
@@ -304,6 +300,16 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(css, /\[data-testid="route-loading-skeleton"\] \{ background-color: var\(--canvas\); \}/);
     assert.match(css, /@media \(max-width: 767px\), \(pointer: coarse\)/);
     assert.match(css, /data-lg-compact-solid="on"[\s\S]*?\/ 0\.96\)/);
+    const chrome = css.slice(
+      css.indexOf(":is(header.bg-surface-scrim"),
+      css.indexOf("@media (max-width: 767px)"),
+    );
+    assert.match(chrome, /background-image:[\s\S]*linear-gradient[\s\S]*var\(--lg-chrome-a, 0\.72\)[\s\S]*var\(--lg-chrome-fade, 40px\)/);
+    assert.match(chrome, /backdrop-filter: blur\(var\(--lg-chrome-blur, 20px\)\)/);
+    assert.match(chrome, /-webkit-mask-image:[\s\S]*mask-image:/);
+    assert.doesNotMatch(chrome, /--glass-overlay-a/);
+    assert.match(css, /\[data-promptbox\][\s\S]*min\(1, calc\(var\(--lg-chrome-a, 0\.72\) \+ 0\.12\)\)/);
+    assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*background-image: none/);
     for (const token of ["--card", "--popover", "--surface-raised"]) {
       assert.match(decls.get(token), /var\(--glass-overlay-a\)/);
     }

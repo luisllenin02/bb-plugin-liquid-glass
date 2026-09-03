@@ -46,8 +46,8 @@ The palettes also appear under **Settings → Appearance**.
 The settings page is split into four focused sections:
 
 - **Glass** keeps theme mode, independent sidebar and pane opacity and blur,
-  main-pane glass, overlay opacity, compact solid panes, wallpaper filters,
-  and interactive vibrancy.
+  main-pane glass, solid-sheet and fading-chrome controls, compact solid panes,
+  wallpaper filters, and interactive vibrancy.
 - **Colours** offers miniature cards for applying either palette, named accent
   swatches, a credited Monokai-vivid row, nine keyboard-accessible shade ramps,
   native and hex custom-colour controls, and eight shell-tint chips.
@@ -71,6 +71,9 @@ The Glass controls are:
 | Pane opacity | 15–100 % | 85 % |
 | Pane blur | 0–64 px | 24 px |
 | Overlay opacity | 85–100 % | 94 % |
+| Chrome opacity | 30–100 % | 72 % |
+| Chrome fade | 0–96 px | 40 px |
+| Chrome blur | 0–48 px | 20 px |
 | Compact solid panes | on / off | on |
 | Wallpaper brightness | 30–160 % | 100 % |
 | Wallpaper blur | 0–40 px | 0 px |
@@ -87,6 +90,15 @@ black or white button text that also clears 4.5:1.
 The wallpaper custom controls accept an `https://` URL or an absolute local
 path with a **Test** button that reports what the bounded wallpaper route makes
 of it.
+
+### Chrome fades, sheets are solid
+
+Menus, dialogs, drawers, toasts, and palettes remain solid frosted sheets so
+content cannot show through them. Pane chrome is different: thread and
+secondary-panel headers fade downward into the pane, while composer docks,
+plugin cards, the context meter, and the scroll control fade upward. Tint and
+blur share the chosen fade distance; the prompt box stays a readable flat
+surface at the chrome opacity plus 12 percentage points, capped at solid.
 
 ### Screenshot placeholders
 
@@ -178,7 +190,10 @@ complete on their own and stay correct if the plugin's frontend is disabled:
 | `--lg-pane-a` | `0.85` | main-pane opacity when pane glass is on |
 | `--lg-blur` | `24px` | sidebar, card, and popover backdrop blur |
 | `--lg-pane-blur` | `24px` | main-pane backdrop blur when pane glass is on |
-| `--lg-overlay-a` | `0.94` | menus, sheets, dialogs, and sticky chrome opacity |
+| `--lg-overlay-a` | `0.94` | menus, sheets, dialogs, drawers, and toasts |
+| `--lg-chrome-a` | `0.72` | outer-edge opacity of pane chrome |
+| `--lg-chrome-fade` | `40px` | chrome fade distance into pane glass |
+| `--lg-chrome-blur` | `20px` | outer-edge backdrop blur of pane chrome |
 | `--lg-wp-brightness` | `1` | wallpaper brightness filter |
 | `--lg-wp-blur` | `0px` | wallpaper blur filter |
 | `--lg-wp-sat` | `1.1` | wallpaper saturation filter |

@@ -32,6 +32,9 @@ export const RANGES = {
   paneOpacity: { min: 0.15, max: 1, step: 0.01 },
   paneBlur: { min: 0, max: 64, step: 1 },
   overlayOpacity: { min: 0.85, max: 1, step: 0.01 },
+  chromeOpacity: { min: 0.3, max: 1, step: 0.01 },
+  chromeFade: { min: 0, max: 96, step: 1 },
+  chromeBlur: { min: 0, max: 48, step: 1 },
   wallpaperBrightness: { min: 0.3, max: 1.6, step: 0.01 },
   wallpaperBlur: { min: 0, max: 40, step: 1 },
   wallpaperSaturation: { min: 0, max: 2, step: 0.01 },
@@ -66,18 +69,9 @@ export const appearanceSchema = z
     hue: z.number().min(RANGES.hue.min).max(RANGES.hue.max),
     saturation: z.number().min(RANGES.saturation.min).max(RANGES.saturation.max),
     accentHue: z.number().min(RANGES.accentHue.min).max(RANGES.accentHue.max),
-    accentSaturation: z
-      .number()
-      .min(RANGES.accentSaturation.min)
-      .max(RANGES.accentSaturation.max),
-    accentLightness: z
-      .number()
-      .min(RANGES.accentLightness.min)
-      .max(RANGES.accentLightness.max),
-    sidebarOpacity: z
-      .number()
-      .min(RANGES.sidebarOpacity.min)
-      .max(RANGES.sidebarOpacity.max),
+    accentSaturation: z.number().min(RANGES.accentSaturation.min).max(RANGES.accentSaturation.max),
+    accentLightness: z.number().min(RANGES.accentLightness.min).max(RANGES.accentLightness.max),
+    sidebarOpacity: z.number().min(RANGES.sidebarOpacity.min).max(RANGES.sidebarOpacity.max),
     paneGlass: z.boolean(),
     blur: z.number().min(RANGES.blur.min).max(RANGES.blur.max),
     paneOpacity: z
@@ -89,6 +83,9 @@ export const appearanceSchema = z
       .number()
       .min(RANGES.overlayOpacity.min)
       .max(RANGES.overlayOpacity.max),
+    chromeOpacity: z.number().min(RANGES.chromeOpacity.min).max(RANGES.chromeOpacity.max),
+    chromeFade: z.number().min(RANGES.chromeFade.min).max(RANGES.chromeFade.max),
+    chromeBlur: z.number().min(RANGES.chromeBlur.min).max(RANGES.chromeBlur.max),
     compactSolidPanes: z.boolean(),
     wallpaper: z.enum([...WALLPAPER_PRESETS, "custom"]),
     wallpaperUrl: z.string().nullable(),
@@ -115,7 +112,6 @@ export const appearanceSchema = z
 
 export type Appearance = z.infer<typeof appearanceSchema>;
 
-/** A partial write; every field optional, each still range-validated. */
 export const appearancePatchSchema = appearanceSchema.partial().strict();
 export type AppearancePatch = z.infer<typeof appearancePatchSchema>;
 
@@ -131,6 +127,9 @@ export const DEFAULT_APPEARANCE: Appearance = {
   paneOpacity: 0.85,
   paneBlur: 24,
   overlayOpacity: 0.94,
+  chromeOpacity: 0.72,
+  chromeFade: 40,
+  chromeBlur: 20,
   compactSolidPanes: true,
   wallpaper: "aurora",
   wallpaperUrl: null,
@@ -142,7 +141,6 @@ export const DEFAULT_APPEARANCE: Appearance = {
   interactiveVibrancy: 70,
 };
 
-/** The two palettes this plugin contributes, by manifest theme id. */
 export type Palette = "dark" | "light";
 
 export const THEME_ID_PREFIX = "plugin:liquid-glass:";
@@ -289,6 +287,15 @@ export function resolveVars(
     "--lg-overlay-a": String(
       clamp(appearance.overlayOpacity, RANGES.overlayOpacity.min, RANGES.overlayOpacity.max),
     ),
+    "--lg-chrome-a": String(
+      clamp(appearance.chromeOpacity, RANGES.chromeOpacity.min, RANGES.chromeOpacity.max),
+    ),
+    "--lg-chrome-fade": `${Math.round(
+      clamp(appearance.chromeFade, RANGES.chromeFade.min, RANGES.chromeFade.max),
+    )}px`,
+    "--lg-chrome-blur": `${Math.round(
+      clamp(appearance.chromeBlur, RANGES.chromeBlur.min, RANGES.chromeBlur.max),
+    )}px`,
     "--lg-wp-brightness": String(
       clamp(
         appearance.wallpaperBrightness,
@@ -346,6 +353,9 @@ export const MANAGED_VARS = [
   "--lg-blur",
   "--lg-pane-blur",
   "--lg-overlay-a",
+  "--lg-chrome-a",
+  "--lg-chrome-fade",
+  "--lg-chrome-blur",
   "--lg-wp-brightness",
   "--lg-wp-blur",
   "--lg-wp-sat",

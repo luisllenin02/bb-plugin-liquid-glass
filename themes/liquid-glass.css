@@ -1,18 +1,3 @@
-/* Liquid Glass — the monocode window, inside bb.
- *
- * monocode's look is a transparent macOS NSWindow over the real desktop plus
- * native background blur. bb's Electron window is opaque, so this theme paints
- * its own wallpaper layer on the window floor and makes every pane above it
- * genuinely translucent with real backdrop blur, at monocode's own opacities
- * (sidebar 0.85, blur 24px, shell hue 240 / saturation 0%).
- *
- * Every knob is a `--lg-*` custom property with a fallback, so the palette is
- * complete on its own and the plugin's frontend only overrides values the user
- * has actually changed. Internal `--glass-*` aliases resolve each knob once.
- *
- * Dark-only palette, so it claims .light as well as .dark (as ayu-mirage does).
- */
-
 :root,
 .light,
 .dark {
@@ -178,9 +163,6 @@
     linear-gradient(170deg, hsl(0 0% 16%), hsl(0 0% 9%));
 }
 
-/* The window floor, on `html` so it sits below every pane: an opaque canvas
-   that can never show a hole, the wallpaper image over it, and the dim overlay
-   listed first so it composites on top of the wallpaper. */
 html {
   position: relative;
   isolation: isolate;
@@ -211,14 +193,6 @@ body::after {
   background: hsl(0 0% 0% / var(--lg-dim, 0.35));
 }
 
-/* One tint layer between the wallpaper and the content, not four.
-   bb paints `body` with `bg-background` (`@layer base` in the host's theme.css)
-   and paints the main pane's `<main data-sidebar="inset">` with `bg-background`
-   again, so leaving `body` alone composites the pane tint twice and only
-   0.15 x 0.15 = 2.25% of the wallpaper survives. `html` already carries the
-   opaque canvas plus the wallpaper, so `body` has nothing left to paint.
-   This rule is unlayered and therefore beats the host's `@layer base` body
-   rule regardless of injection order. */
 body {
   background-color: transparent;
 }
@@ -267,11 +241,6 @@ html[data-lg-pane-glass="on"] main[data-sidebar="inset"] {
   backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
 }
 
-/* The same collapse for the sidebar, which nests four `bg-sidebar` elements:
-   the fixed panel, its inner column, SidebarContent, and every sticky tier.
-   Stacked, 0.85 four times leaves 0.15^4 = 0.05% of the wallpaper — an opaque
-   theme wearing a glass name — and runs the blur three times over. Only the
-   outermost `.bg-sidebar` tints and blurs; every nested one is a pass-through. */
 .bg-sidebar .bg-sidebar {
   background-color: transparent;
   -webkit-backdrop-filter: none;
@@ -324,11 +293,6 @@ button[role="switch"][aria-checked="true"] {
   --tw-ring-color: var(--ring);
 }
 
-/* Sidebar row states. focused carries a solid accent rail, open-in-split a
-   primary-tinted wash and a dashed outline — different grammar, not a different
-   alpha, so the two states can never read as the same row. Keyed on the host's
-   own classes and on the bb-sidebar plugin's data attribute, so it reads in
-   either thread list. */
 .bb-sidebar-open-in-split-row {
   --bb-sidebar-open-in-split-background: color-mix(in oklab, var(--primary) 10%, var(--sidebar));
   outline: 1px dashed color-mix(in oklab, var(--primary) 50%, transparent);
@@ -343,24 +307,59 @@ button[role="switch"][aria-checked="true"] {
   box-shadow: inset 3px 0 0 var(--thread-accent, var(--primary));
 }
 
-/* Sheets sit over content, so they use strong fixed blur and the independent
-   overlay opacity instead of inheriting base-pane translucency. */
+/* Sheets stay solid; pane chrome fades its tint and blur into pane glass. */
 body { position: relative; isolation: isolate; background-color: var(--canvas); }
 [data-testid="route-loading-skeleton"] { background-color: var(--canvas); }
-:is([data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-secondary-panel-shelf], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root], [data-testid="root-compose-compact-home"], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], [data-promptbox], button[aria-label="Scroll to latest event"]) {
+:is([data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root], [data-testid="root-compose-compact-home"]) {
   background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
   -webkit-backdrop-filter: blur(32px) saturate(1.2);
   backdrop-filter: blur(32px) saturate(1.2);
   box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.06);
 }
-header.bg-surface-scrim {
-  background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-overlay-a));
-  -webkit-backdrop-filter: blur(32px) saturate(1.2);
-  backdrop-filter: blur(32px) saturate(1.2);
-  box-shadow: inset 0 -1px 0 hsl(0 0% 100% / 0.06);
+[data-promptbox] {
+  background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / min(1, calc(var(--lg-chrome-a, 0.72) + 0.12)));
+  -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+}
+:is(header.bg-surface-scrim, [data-secondary-panel-shelf]),
+:is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
+  position: relative;
+  isolation: isolate;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: 100% var(--lg-chrome-fade, 40px), 100% 100%;
+  box-shadow: none;
+}
+:is(header.bg-surface-scrim, [data-secondary-panel-shelf]) {
+  background-image:
+    linear-gradient(to bottom, transparent calc(66.667% - 1px), hsl(0 0% 100% / 0.06) 66.667%, transparent 100%),
+    linear-gradient(to bottom, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a)) var(--lg-chrome-fade, 40px));
+  background-position: top, center;
+}
+:is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
+  background-image:
+    linear-gradient(to top, transparent calc(66.667% - 1px), hsl(0 0% 100% / 0.06) 66.667%, transparent 100%),
+    linear-gradient(to top, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a)) var(--lg-chrome-fade, 40px));
+  background-position: bottom, center;
+}
+:is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"])::before {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+  inset: 0;
+  -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
+}
+:is(header.bg-surface-scrim, [data-secondary-panel-shelf])::before {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, transparent var(--lg-chrome-fade, 40px));
+  mask-image: linear-gradient(to bottom, #000 0, transparent var(--lg-chrome-fade, 40px));
+}
+:is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"])::before {
+  -webkit-mask-image: linear-gradient(to top, #000 0, transparent var(--lg-chrome-fade, 40px));
+  mask-image: linear-gradient(to top, #000 0, transparent var(--lg-chrome-fade, 40px));
 }
 @media (max-width: 767px), (pointer: coarse) {
-  html[data-lg-compact-solid="on"] :is(main[data-sidebar="inset"], [data-testid="root-compose-compact-home"], [data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-secondary-panel-shelf], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], [data-promptbox], button[aria-label="Scroll to latest event"], header.bg-surface-scrim) {
+  html[data-lg-compact-solid="on"] :is(main[data-sidebar="inset"], [data-testid="root-compose-compact-home"], [data-radix-popper-content-wrapper] > *, [role="dialog"], [role="menu"], [role="listbox"], [data-bb-portaled-overlay], [data-vaul-drawer-direction]:not([data-sidebar="panel"]), [data-sonner-toast], [cmdk-root]) {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
     -webkit-backdrop-filter: blur(32px) saturate(1.2); backdrop-filter: blur(32px) saturate(1.2);
   }
@@ -368,6 +367,14 @@ header.bg-surface-scrim {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-sidebar-a, 0.85));
     -webkit-backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3); backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
   }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root, .light, .dark { --glass-overlay-a: 1; }
+  :is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], [data-promptbox], button[aria-label="Scroll to latest event"]) {
+    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 1);
+    background-image: none;
+  }
+  :is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"])::before { display: none; }
 }
 
 /* Without backdrop-filter there is no blur to separate a pane from the
