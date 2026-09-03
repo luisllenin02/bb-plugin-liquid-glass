@@ -18,7 +18,7 @@ function compactMedia(css) {
 }
 
 for (const file of palettes) {
-  test(`${file} makes the phone sidebar, side panel, and new-thread prompt box solid sheets`, async () => {
+  test(`${file} keeps the mobile sidebar at its selected glass opacity`, async () => {
     const css = await readFile(new URL(`themes/${file}`, root), "utf8");
     const compact = compactMedia(css);
     const solidRule = compact.match(/([^{}]+)\{[^{}]*\/ 0\.96\);[^{}]*\}/);
@@ -32,31 +32,20 @@ for (const file of palettes) {
     assert.doesNotMatch(solidRule[1], /\[data-sidebar="sidebar"\]/);
     assert.doesNotMatch(solidRule[1], /\[data-sidebar="panel"\]\[data-vaul-drawer-direction\]/);
 
-    // On a phone the sidebar and side panel are sheets over the thread: solid,
-    // unblurred, and above the pane, so nothing reads through them.
     const sidebarRule = compact.match(/([^{}]*\[data-sidebar="sidebar"\][^{}]*)\{([^{}]+)\}/);
-    assert.ok(sidebarRule, "compact sidebar sheet rule must exist");
+    assert.ok(sidebarRule, "compact sidebar glass rule must exist");
     assert.match(sidebarRule[1], /\[data-sidebar="sidebar"\]\[data-mobile="true"\]/);
     assert.match(sidebarRule[1], /\[data-sidebar="panel"\]\[data-vaul-drawer-direction\]/);
-    assert.match(sidebarRule[1], /\[data-secondary-panel-shelf\]/);
-    assert.match(sidebarRule[2], /\/ max\(var\(--lg-sidebar-a, 0\.85\), 0\.96\)\)/);
-    assert.match(sidebarRule[2], /backdrop-filter: none/);
-    assert.doesNotMatch(sidebarRule[2], /blur\(/);
-    assert.match(
-      compact,
-      /html \[data-sidebar="panel"\]\[data-state="open"\],\s*html \[data-secondary-panel-shelf\]\[data-state="shelf"\] \{\s*z-index: 40 !important;/,
-      "open sidebar and side panel must sit above the pane",
-    );
-    assert.match(
-      compact,
-      /html \[data-secondary-panel-shelf\]\[data-state="closed"\] \{\s*visibility: hidden;\s*transition: visibility 0s;/,
-      "the closed side panel must hide at once",
-    );
-    assert.match(
-      compact,
-      /html \[data-testid="root-compose-compact-composer"\],\s*html \[data-testid="root-compose-compact-composer"\] \[data-promptbox\],\s*html \[data-root-compose-mobile-recents\] \.sticky \{\s*background-color: hsl\(var\(--glass-h\) var\(--glass-s\) var\(--glass-l\) \/ 0\.96\) !important;/,
-      "the new-thread prompt box and Recent heading must be solid on a phone",
-    );
+    assert.match(sidebarRule[2], /\/ var\(--lg-sidebar-a, 0\.85\)\)/);
+    assert.match(sidebarRule[2], /blur\(var\(--lg-blur, 24px\)\) saturate\(1\.3\)/);
+    assert.doesNotMatch(sidebarRule[2], /\/ (?:0\.9[6-9]|1(?:\.0+)?)\)/);
     assert.match(css, /\[data-vaul-drawer-direction\]:not\(\[data-sidebar="panel"\]\)/);
+
+    for (const [, selector, declarations] of compact.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (/\[data-sidebar="sidebar"\]|\[data-sidebar="panel"\]\[data-vaul-drawer-direction\]/.test(selector)) {
+        assert.doesNotMatch(declarations, /\/ (?:0\.9[6-9]|1(?:\.0+)?)\)/);
+        assert.match(declarations, /\/ var\(--lg-sidebar-a, 0\.85\)\)/);
+      }
+    }
   });
 }
