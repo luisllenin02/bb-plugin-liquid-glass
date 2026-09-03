@@ -18,8 +18,12 @@ import {
 import { APPEARANCE_EVENT } from "./src/theme-mode.js";
 import { AppearanceSection } from "./src/components/AppearanceSection.js";
 
-/** Theme changes have no plugin event, so re-check the active theme on a timer. */
-const RECHECK_MS = 30_000;
+/**
+ * The host writes the active palette's CSS into this `<style>` element
+ * (apps/app/src/lib/themes/index.ts). Observing it is how the content script
+ * learns about a theme switch without polling the server.
+ */
+export const HOST_THEME_STYLE_ID = "bb-app-theme";
 
 type AppearanceReply = Record<string, unknown> & {
   activeThemeId: string | null;
@@ -82,14 +86,49 @@ export default definePluginApp((app) => {
       };
 
       void paint();
-      const timer = setInterval(() => void paint(), RECHECK_MS);
-      // The settings section fires this after every write and on the realtime
-      // signal, so the window repaints without waiting for the next poll.
+
+      // No timers: three signals cover every way the appearance can change.
+      // 1. This window edits it — the settings section fires this event after
+      //    each write and when the server's realtime signal arrives.
       window.addEventListener(APPEARANCE_EVENT, () => void paint(), { signal });
+
+      // 2. The palette switches (Settings, `bb theme set`, another client) —
+      //    the host rewrites its theme <style>; repaint when that text changes.
+      const styleObserver = new MutationObserver(() => void paint());
+      const observeThemeStyle = (): boolean => {
+        const style = document.getElementById(HOST_THEME_STYLE_ID);
+        if (!style) return false;
+        styleObserver.observe(style, {
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+        return true;
+      };
+      const headObserver = new MutationObserver(() => {
+        if (!observeThemeStyle()) return;
+        headObserver.disconnect();
+        // The host creates the element and fills it in the same tick, before
+        // the style observer above could see that first write.
+        void paint();
+      });
+      if (!observeThemeStyle()) {
+        headObserver.observe(document.head, { childList: true });
+      }
+
+      // 3. Edits made on another device — refetch once when this window comes
+      //    back into view rather than while nobody is looking at it.
+      const onVisibilityChange = () => {
+        if (document.visibilityState === "visible") void paint();
+      };
+      document.addEventListener("visibilitychange", onVisibilityChange, {
+        signal,
+      });
 
       return () => {
         disposed = true;
-        clearInterval(timer);
+        styleObserver.disconnect();
+        headObserver.disconnect();
         clearVars();
       };
     },
