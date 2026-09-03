@@ -109,6 +109,7 @@ for (const [mode, css] of Object.entries(palettes)) {
     );
     assert.equal(knobDefault(css, "--lg-wp-brightness"), "1");
     assert.equal(knobDefault(css, "--lg-wp-blur"), "0px");
+    assert.equal(knobDefault(css, "--lg-pane-blur"), "24px");
     assert.equal(knobDefault(css, "--lg-wp-sat"), "1.1");
     assert.equal(knobDefault(css, "--lg-vibrancy"), "70");
     assert.equal(knobDefault(css, "--lg-sidebar-a"), "0.85");
@@ -236,9 +237,19 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(css, /var\(--lg-wallpaper, var\(--glass-aurora\)\)/);
     assert.match(
       css,
-      /filter: brightness\(var\(--lg-wp-brightness, 1\)\) saturate\(var\(--lg-wp-sat, 1\.1\)\) blur\(var\(--lg-wp-blur, 0px\)\);/,
+      /filter: brightness\(var\(--lg-wp-brightness, 1\)\) saturate\(var\(--lg-wp-sat, 1\.1\)\) blur\(calc\(var\(--lg-wp-blur, 0px\) \+ var\(--lg-pane-glass-blur, 0px\)\)\);/,
     );
-    assert.match(css, /inset: calc\(-1 \* var\(--lg-wp-blur, 0px\)\);/);
+    assert.match(css, /inset: calc\(-1 \* \(var\(--lg-wp-blur, 0px\) \+ var\(--lg-pane-glass-blur, 0px\)\)\);/);
+    assert.match(
+      css,
+      /html\[data-lg-pane-glass="on"\] \{ --lg-pane-glass-blur: var\(--lg-pane-blur, 24px\); \}/,
+      "pane blur must be applied to the wallpaper layer, never as a backdrop-filter on the pane",
+    );
+    assert.doesNotMatch(
+      css.replace(/\/\*[\s\S]*?\*\//g, ""),
+      /backdrop-filter: blur\(var\(--lg-pane-blur/,
+      "pane blur must not come back as a per-frame backdrop-filter",
+    );
     for (const preset of ["aurora", "forest", "sunset", "ocean", "mono"]) {
       assert.match(
         css,

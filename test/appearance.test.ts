@@ -87,6 +87,7 @@ describe("resolveVars", () => {
       "--lg-sidebar-a": "0.85",
       "--lg-pane-a": "0.85",
       "--lg-blur": "24px",
+      "--lg-pane-blur": "24px",
       "--lg-overlay-a": "0.94",
       "--lg-chrome-a": "0.72",
       "--lg-chrome-fade": "40px",

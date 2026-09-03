@@ -176,15 +176,23 @@ body::after {
   pointer-events: none;
 }
 
+/* Pane blur is applied here, to the static wallpaper layer beneath the
+   panes, not as a backdrop-filter through them. A backdrop-filter on a
+   full-height pane re-rasterises the whole pane every frame the pane's
+   content changes (every keystroke, every scroll); a filter on this fixed
+   layer is rasterised once and cached, and the only thing behind the main
+   pane is this layer, so the glass reads the same. */
+html[data-lg-pane-glass="on"] { --lg-pane-glass-blur: var(--lg-pane-blur, 24px); }
+html[data-lg-pane-glass="off"] { --lg-pane-glass-blur: 0px; }
 body::before {
   z-index: -2;
-  inset: calc(-1 * var(--lg-wp-blur, 0px));
+  inset: calc(-1 * (var(--lg-wp-blur, 0px) + var(--lg-pane-glass-blur, 0px)));
   background-image: var(--lg-wallpaper, var(--glass-aurora));
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover, cover;
   background-attachment: fixed, fixed;
-  filter: brightness(var(--lg-wp-brightness, 1)) saturate(var(--lg-wp-sat, 1.1)) blur(var(--lg-wp-blur, 0px));
+  filter: brightness(var(--lg-wp-brightness, 1)) saturate(var(--lg-wp-sat, 1.1)) blur(calc(var(--lg-wp-blur, 0px) + var(--lg-pane-glass-blur, 0px)));
 }
 
 body::after {
