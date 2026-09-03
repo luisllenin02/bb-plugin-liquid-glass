@@ -334,7 +334,10 @@ body { position: relative; isolation: isolate; background-color: var(--canvas); 
   backdrop-filter: none;
   box-shadow: none;
 }
-[data-promptbox] {
+/* Qualify the form selector with `html` so it wins over the host's
+   same-specificity `.bg-background` utility when the theme stylesheet is
+   loaded before the app stylesheet. */
+html [data-promptbox] {
   background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / min(1, calc(var(--lg-chrome-a, 0.72) + 0.12)));
   -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
   backdrop-filter: blur(var(--lg-chrome-blur, 20px)) saturate(1.2);
@@ -358,6 +361,16 @@ body { position: relative; isolation: isolate; background-color: var(--canvas); 
   background-image: linear-gradient(to top, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0) var(--lg-chrome-fade, 40px));
   background-position: bottom;
   box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.06);
+}
+/* `data-promptbox-shell` is the stable host seam around the form and its
+   project/environment strip. Do not tint that wrapper; the form above is the
+   only surface that needs a readable fill. */
+html [data-promptbox-shell] {
+  background-color: transparent;
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 @media (max-width: 767px), (pointer: coarse) {
   /* The host keeps the mobile sidebar panel fixed under the left edge of the

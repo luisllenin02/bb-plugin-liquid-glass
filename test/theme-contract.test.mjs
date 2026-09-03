@@ -47,7 +47,7 @@ test("manifest contributes both Liquid Glass palettes plus a server and an app",
   }
   assert.equal(manifest.engines.bb, ">=0.41");
   assert.equal(manifest.engines.bbPluginSdk, ">=0.4.8");
-  assert.equal(manifest.version, "0.5.8");
+  assert.equal(manifest.version, "0.5.9");
   assert.ok(manifest.dependencies.zod, "zod must be a runtime dependency");
   for (const dependency of ["clsx", "tailwind-merge"]) {
     assert.ok(
@@ -308,7 +308,11 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.doesNotMatch(chrome, /(?:^|;)\s*(?:position|inset|display|overflow|contain|isolation|height|min-height|flex|transform)\s*:/m);
     assert.doesNotMatch(chrome, /--glass-overlay-a/);
     assert.match(css, /\[data-promptbox\][\s\S]*min\(1, calc\(var\(--lg-chrome-a, 0\.72\) \+ 0\.12\)\)/);
-    assert.match(css, /\[data-promptbox\] \{[^}]*background-color:[^}]*\}/);
+    assert.match(css, /html \[data-promptbox\] \{[^}]*background-color:[^}]*\}/);
+    assert.match(
+      css,
+      /html \[data-promptbox-shell\] \{\n\s*background-color: transparent;\n\s*background-image: none;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
+    );
     assert.match(
       css,
       /:is\(\[role="tooltip"\], \[data-radix-popper-content-wrapper\] > \.bg-primary\) \{\n\s*color: var\(--foreground\);\n\}/,
