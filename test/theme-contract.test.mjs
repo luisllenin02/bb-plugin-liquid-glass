@@ -300,10 +300,10 @@ for (const [mode, css] of Object.entries(palettes)) {
     assert.match(css, /\[data-testid="route-loading-skeleton"\] \{ background-color: var\(--canvas\); \}/);
     assert.match(css, /@media \(max-width: 767px\), \(pointer: coarse\)/);
     assert.match(css, /data-lg-compact-solid="on"[\s\S]*?\/ 0\.96\)/);
-    const chrome = css.slice(
-      css.indexOf(":is(header.bg-surface-scrim"),
-      css.indexOf("@media (max-width: 767px)"),
-    );
+    const chrome = css.slice(css.indexOf(":is(header.bg-surface-scrim"), css.indexOf("@media (max-width: 767px)"));
+    const chromeRoots = chrome.match(/^:is\(header\.bg-surface-scrim,[\s\S]*?^}\n/m)?.[0] ?? "";
+    assert.ok(chromeRoots, "shared sticky and floating chrome rule must exist");
+    assert.doesNotMatch(chromeRoots, /(?:^|;)\s*position\s*:/m, "chrome roots must preserve host positioning");
     assert.match(chrome, /background-image:[\s\S]*linear-gradient[\s\S]*var\(--lg-chrome-a, 0\.72\)[\s\S]*var\(--lg-chrome-fade, 40px\)/);
     assert.match(chrome, /backdrop-filter: blur\(var\(--lg-chrome-blur, 20px\)\)/);
     assert.match(chrome, /-webkit-mask-image:[\s\S]*mask-image:/);

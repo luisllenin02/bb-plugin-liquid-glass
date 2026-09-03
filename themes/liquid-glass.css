@@ -323,7 +323,6 @@ body { position: relative; isolation: isolate; background-color: var(--canvas); 
 }
 :is(header.bg-surface-scrim, [data-secondary-panel-shelf]),
 :is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
-  position: relative;
   isolation: isolate;
   background-color: transparent;
   background-repeat: no-repeat;

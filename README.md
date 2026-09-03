@@ -122,11 +122,11 @@ sidebar drawer always keeps the chosen sidebar opacity and blur.
 ### Why sheets are frosted, not clear
 
 Sidebar and main-pane glass sit beside each other directly on the wallpaper,
-so translucency belongs there. Menus, dialogs, drawers, the compact home pane,
-the sticky thread header, and the composer dock sit over readable application
-content. Those surfaces use an independent 94% shell tint and a 32 px blur by
-default: the layer beneath contributes a soft colour glow without leaving text
-or row shapes legible. **Overlay opacity** can make sheets fully solid, while
+so translucency belongs there. Menus, dialogs, drawers, and the compact home
+pane sit over readable application content and use an independent 94% shell
+tint with 32 px blur by default. Sticky headers and composer docks instead use
+the chrome defaults: 72% tint and 20 px blur at the outer edge, fading into the
+pane over 40 px. **Overlay opacity** can make sheets fully solid, while
 **Compact solid panes** makes the main pane and sheets near-solid on phones;
 the sidebar keeps its glass.
 
