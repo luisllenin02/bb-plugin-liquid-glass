@@ -394,6 +394,20 @@ html [data-thread-window] :has(> .chat-prompt-box) > [data-overflow-fade="above"
   background-image: none;
   opacity: 0;
 }
+/* The running-thread footer has a second wrapper inside PageShell. It also
+   owns an above fade, but its promptbox shell is nested one level deeper, so
+   the original `.chat-prompt-box` seam does not reach it. */
+html [data-thread-window] :has(> [data-overflow-fade="above"]):has([data-promptbox-shell]) {
+  background-color: transparent;
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+html [data-thread-window] :has(> [data-overflow-fade="above"]):has([data-promptbox-shell]) > [data-overflow-fade="above"] {
+  background-image: none;
+  opacity: 0;
+}
 @media (max-width: 767px), (pointer: coarse) {
   /* The host keeps the mobile sidebar panel fixed under the left edge of the
      page at all times (z-0, the page slides right to reveal it); through the
