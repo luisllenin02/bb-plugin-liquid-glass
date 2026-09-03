@@ -32,7 +32,7 @@ export const RANGES = {
   paneOpacity: { min: 0.15, max: 1, step: 0.01 },
   paneBlur: { min: 0, max: 64, step: 1 },
   overlayOpacity: { min: 0.85, max: 1, step: 0.01 },
-  chromeOpacity: { min: 0.3, max: 1, step: 0.01 },
+  chromeOpacity: { min: 0, max: 1, step: 0.01 },
   chromeFade: { min: 0, max: 96, step: 1 },
   chromeBlur: { min: 0, max: 48, step: 1 },
   wallpaperBrightness: { min: 0.3, max: 1.6, step: 0.01 },

@@ -333,12 +333,14 @@ body { position: relative; isolation: isolate; background-color: var(--canvas); 
   background-size: 100% 100%;
 }
 :is(header.bg-surface-scrim, [data-secondary-panel-shelf]) {
-  background-image: linear-gradient(to bottom, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a)) var(--lg-chrome-fade, 40px));
+  background-image: linear-gradient(to bottom, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0) var(--lg-chrome-fade, 40px));
+  /* The chrome sits on the pane, so its tint fades to nothing rather than to
+     the pane alpha; otherwise the two tints stack and the bar reads solid. */
   background-position: top;
   box-shadow: inset 0 -1px 0 hsl(0 0% 100% / 0.06);
 }
 :is([data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], button[aria-label="Scroll to latest event"]) {
-  background-image: linear-gradient(to top, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--glass-pane-a)) var(--lg-chrome-fade, 40px));
+  background-image: linear-gradient(to top, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-chrome-a, 0.72)) 0, hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0) var(--lg-chrome-fade, 40px));
   background-position: bottom;
   box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.06);
 }
