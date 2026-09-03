@@ -558,12 +558,17 @@ html [data-promptbox-shell] > .grid > * {
     -webkit-backdrop-filter: blur(32px) saturate(1.2); backdrop-filter: blur(32px) saturate(1.2);
   }
   /* On a phone the sidebar and the side panel are sheets over the thread,
-     not glass beside it: whatever shows through them is the thread itself.
-     Make them near-solid, drop their blur (there is nothing behind them but
-     the thread), and lift them above the pane so they read the same whether
-     or not the page slides aside. */
-  html :is([data-sidebar="sidebar"], [data-sidebar="sidebar"][data-mobile="true"], [data-sidebar="panel"][data-vaul-drawer-direction], [data-secondary-panel-shelf], [data-secondary-panel-shelf] aside) {
-    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / max(var(--lg-sidebar-a, 0.85), 0.96));
+     not glass beside it, so they are frosted the way a phone sheet is: one
+     tinted, blurred surface on the outer sheet (floors on tint and blur so a
+     glassy desktop setting cannot leave the thread legible through it), the
+     inner surfaces clear so nothing stacks, and the sheet lifted above the
+     pane so it reads the same whether or not the page slides aside. */
+  html :is([data-sidebar="panel"][data-vaul-drawer-direction], [data-secondary-panel-shelf]) {
+    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / max(var(--lg-sidebar-a, 0.85), 0.82));
+    -webkit-backdrop-filter: blur(max(var(--lg-blur, 24px), 20px)) saturate(1.3); backdrop-filter: blur(max(var(--lg-blur, 24px), 20px)) saturate(1.3);
+  }
+  html :is([data-sidebar="sidebar"], [data-sidebar="sidebar"][data-mobile="true"], [data-secondary-panel-shelf] aside) {
+    background-color: transparent;
     -webkit-backdrop-filter: none; backdrop-filter: none;
   }
   /* The host writes the panel's z-index inline, hence the importance. */
@@ -576,19 +581,20 @@ html [data-promptbox-shell] > .grid > * {
     transition: visibility 0s;
   }
   /* The new-thread screen parks its prompt box over the Recent list, and
-     the list scrolls under a sticky heading; both must be solid or the list
-     reads through them. */
+     the list scrolls under a sticky heading. Frost both: the list becomes
+     haze behind them instead of reading through. */
   html [data-testid="root-compose-compact-composer"],
-  html [data-testid="root-compose-compact-composer"] [data-promptbox],
   html [data-root-compose-mobile-recents] .sticky {
-    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96) !important;
+    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.82) !important;
     background-image: none !important;
-    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+    -webkit-backdrop-filter: blur(20px) saturate(1.2) !important; backdrop-filter: blur(20px) saturate(1.2) !important;
   }
-  /* The dock's inner wrapper carries the pane tint; over the list that
-     still lets the last row ghost through. Make it fully solid. */
   html [data-testid="root-compose-compact-composer"] > .bg-background {
-    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 1) !important;
+    background-color: transparent !important;
+  }
+  html [data-testid="root-compose-compact-composer"] [data-promptbox] {
+    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.85) !important;
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   }
 }
 @media (prefers-reduced-transparency: reduce) {
