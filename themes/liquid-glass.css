@@ -498,15 +498,28 @@ html [data-thread-window] .sticky.bottom-0 > .bg-background {
 html [data-thread-window] .sticky.bottom-0 [data-overflow-fade="above"] {
   display: none !important;
 }
+/* The host stacks plugin banners (goal, todos, workflow runs, context meter)
+   in a bare `grid` above the prompt box. With no column template the single
+   auto column grows to the widest banner's min-content width, so on a phone
+   every card in the stack runs past the right edge of the pane while the
+   prompt box below it fits. Size the column to the pane and let cards shrink. */
+html [data-promptbox-shell] > .grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+html [data-promptbox-shell] > .grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
 @media (max-width: 767px), (pointer: coarse) {
   /* The host keeps the mobile sidebar panel fixed under the left edge of the
      page at all times (z-0, the page slides right to reveal it); through the
-     pane's glass its tint showed as a lighter strip. Hide it while closed and
-     not being swiped (the host marks a swipe with data-vaul-animate="false"),
-     delayed to match the 220 ms shelf slide so the close still animates. */
+     pane's glass its tint showed as a lighter strip, and while the page slid
+     back over it the whole panel ghosted through the pane. Hide it the moment
+     it is closed (the host marks a swipe with data-vaul-animate="false" and
+     keeps it visible for that); the page then slides over wallpaper only. */
   [data-sidebar="panel"][data-state="closed"]:not([data-vaul-animate="false"]) {
     visibility: hidden;
-    transition: visibility 0s linear 240ms;
+    transition: visibility 0s;
   }
   [data-sidebar="panel"][data-state="open"],
   [data-sidebar="panel"][data-vaul-animate="false"] {

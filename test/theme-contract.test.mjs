@@ -352,6 +352,16 @@ for (const [mode, css] of Object.entries(palettes)) {
       /\[data-testid="root-compose-compact-home"\] \{\n\s*background-color: transparent;\n\s*-webkit-backdrop-filter: none;\n\s*backdrop-filter: none;\n\s*box-shadow: none;\n\}/,
     );
     assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*background-image: none/);
+    assert.match(
+      css,
+      /html \[data-promptbox-shell\] > \.grid \{\n\s*grid-template-columns: minmax\(0, 1fr\);\n\}\nhtml \[data-promptbox-shell\] > \.grid > \* \{\n\s*min-width: 0;\n\s*max-width: 100%;\n\}/,
+      "the composer banner stack must size its column to the pane so cards cannot overflow a phone viewport",
+    );
+    assert.match(
+      css,
+      /\[data-sidebar="panel"\]\[data-state="closed"\]:not\(\[data-vaul-animate="false"\]\) \{\n\s*visibility: hidden;\n\s*transition: visibility 0s;\n\s*\}/,
+      "the closed mobile sidebar must hide immediately so it does not ghost through the pane while the page slides back",
+    );
     for (const token of ["--card", "--popover", "--surface-raised"]) {
       assert.match(decls.get(token), /var\(--glass-overlay-a\)/);
     }
