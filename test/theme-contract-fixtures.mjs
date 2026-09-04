@@ -8,7 +8,6 @@ export const LG_KNOBS = [
   "--lg-sidebar-a",
   "--lg-pane-a",
   "--lg-blur",
-  "--lg-pane-blur",
   "--lg-overlay-a",
   "--lg-chrome-a",
   "--lg-chrome-fade",

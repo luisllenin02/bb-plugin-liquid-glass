@@ -150,9 +150,12 @@ export default function plugin(bb: BbPluginApi) {
         if (key === undefined || valueParts.length === 0) {
           return { exitCode: 2, stderr: "Usage: bb liquid-glass set <key> <value>" };
         }
-        const parsed = parseSet(key, valueParts.join(" "));
+        // The retired keys fold into another knob's current value, so `set`
+        // needs the stored row before it can turn one into a patch.
+        const parsed = parseSet(key, valueParts.join(" "), await read());
         if (!parsed.ok) return { exitCode: 2, stderr: parsed.error };
-        return { exitCode: 0, stdout: formatAppearance(await write(parsed.patch, "cli")) };
+        const next = formatAppearance(await write(parsed.patch, "cli"));
+        return { exitCode: 0, stdout: parsed.note ? `${parsed.note}\n${next}` : next };
       }
       return { exitCode: 2, stderr: `Unknown command "${command}".\n${CLI_USAGE}` };
     },

@@ -180,23 +180,22 @@ body::after {
   pointer-events: none;
 }
 
-/* Pane blur is applied here, to the static wallpaper layer beneath the
+/* One wallpaper blur, applied here, to the static wallpaper layer beneath the
    panes, not as a backdrop-filter through them. A backdrop-filter on a
    full-height pane re-rasterises the whole pane every frame the pane's
    content changes (every keystroke, every scroll); a filter on this fixed
    layer is rasterised once and cached, and the only thing behind the main
-   pane is this layer, so the glass reads the same. */
-html[data-lg-pane-glass="on"] { --lg-pane-glass-blur: var(--lg-pane-blur, 24px); }
-html[data-lg-pane-glass="off"] { --lg-pane-glass-blur: 0px; }
+   pane is this layer, so the glass reads the same. The layer is inset by the
+   blur radius so the softened edges never expose the page behind it. */
 body::before {
   z-index: -2;
-  inset: calc(-1 * (var(--lg-wp-blur, 0px) + var(--lg-pane-glass-blur, 0px)));
+  inset: calc(-1 * var(--lg-wp-blur, 24px));
   background-image: var(--lg-wallpaper, var(--glass-aurora));
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover, cover;
   background-attachment: fixed, fixed;
-  filter: brightness(var(--lg-wp-brightness, 1)) saturate(var(--lg-wp-sat, 1.1)) blur(calc(var(--lg-wp-blur, 0px) + var(--lg-pane-glass-blur, 0px)));
+  filter: brightness(var(--lg-wp-brightness, 1)) saturate(var(--lg-wp-sat, 1.1)) blur(var(--lg-wp-blur, 24px));
 }
 
 body::after {
@@ -218,19 +217,6 @@ html[data-lg-wallpaper="mono"] { --lg-wallpaper: var(--glass-mono); }
 /* A user image or URL, supplied by the frontend as an url()/image-set(). */
 html[data-lg-wallpaper="custom"] {
   --lg-wallpaper: var(--lg-wallpaper-custom, var(--glass-aurora));
-}
-
-/* monocode's "Main pane glass" toggle. The default matches monocode's own
-   default (on); switching it off holds the main pane near-opaque so long
-   transcripts stay readable over a busy wallpaper. */
-/* "on" needs no rule: the palette block above already resolves --background to
-   the pane alpha and --card/--popover to the overlay alpha. Only "off" differs,
-   and only in --background -- redeclaring --card/--popover here at
-   (0,1,1) would outrank the @supports fallback below, which is a plain
-   `:root` at (0,1,0), and pin the sheets at 0.94 on engines with no
-   backdrop-filter. */
-html[data-lg-pane-glass="off"] {
-  --background: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 0.96);
 }
 
 /* The pane's translucent fill is enough to read as glass. A full-height

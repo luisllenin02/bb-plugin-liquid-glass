@@ -8,7 +8,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import plugin from "../server.js";
 import { DEFAULT_APPEARANCE } from "../src/appearance.js";
 
-async function boot(stored?: unknown) {
+/** The plugin, its fake host, and the kv the row is really written to. */
+async function bootWith(stored?: unknown) {
   const { bb, harness } = createFakePluginHost({
     pluginId: "liquid-glass",
     sdk: {
@@ -20,7 +21,11 @@ async function boot(stored?: unknown) {
   });
   if (stored !== undefined) await bb.storage.kv.set("appearance", stored);
   await plugin(bb);
-  return harness;
+  return { bb, harness };
+}
+
+async function boot(stored?: unknown) {
+  return (await bootWith(stored)).harness;
 }
 
 let harness: Awaited<ReturnType<typeof boot>>;
@@ -47,7 +52,6 @@ describe("getAppearance", () => {
       blur: 40,
       hue: 300,
       paneOpacity: 0.85,
-      paneBlur: 24,
       overlayOpacity: 0.94,
       chromeOpacity: 0.72,
       chromeFade: 40,
@@ -56,9 +60,43 @@ describe("getAppearance", () => {
       composerFocusOpacity: 1,
       compactSolidPanes: true,
       wallpaperBrightness: 1,
-      wallpaperBlur: 0,
+      wallpaperBlur: 24,
       wallpaperSaturation: 1.1,
       interactiveVibrancy: 70,
+    });
+  });
+
+  it("migrates a pre-migration row and persists the migrated shape", async () => {
+    const stored = {
+      blur: 1,
+      paneGlass: true,
+      paneBlur: 12,
+      paneOpacity: 0.23,
+      wallpaperBlur: 0,
+      dim: 0.15,
+    };
+    const { bb, harness: oldHarness } = await bootWith(stored);
+    const result = (await oldHarness.behavior.callRpc("getAppearance", null)) as Record<
+      string,
+      unknown
+    >;
+    // paneBlur + wallpaperBlur were one blur(); the sum is what rendered.
+    expect(result).toMatchObject({ wallpaperBlur: 12, paneOpacity: 0.23, blur: 1, dim: 0.15 });
+    expect(result).not.toHaveProperty("paneBlur");
+    expect(result).not.toHaveProperty("paneGlass");
+
+    // The rewritten row is the migrated one, not the row that was read.
+    const persisted = await bb.storage.kv.get<Record<string, unknown>>("appearance");
+    expect(persisted).toMatchObject({ wallpaperBlur: 12, paneOpacity: 0.23 });
+    expect(persisted).not.toHaveProperty("paneBlur");
+    expect(persisted).not.toHaveProperty("paneGlass");
+  });
+
+  it("pins the pane where paneGlass:false pinned it", async () => {
+    const oldHarness = await boot({ paneGlass: false, paneBlur: 12, paneOpacity: 0.23 });
+    expect(await oldHarness.behavior.callRpc("getAppearance", null)).toMatchObject({
+      paneOpacity: 0.96,
+      wallpaperBlur: 0,
     });
   });
 });
@@ -79,12 +117,11 @@ describe("setAppearance", () => {
   it("accepts the phase-two range boundaries", async () => {
     const patch = {
       paneOpacity: 0.15,
-      paneBlur: 64,
       wallpaperBrightness: 1.6,
       wallpaperBlur: 40,
       wallpaperSaturation: 0,
       interactiveVibrancy: 100,
-      overlayOpacity: 1,
+      overlayOpacity: 0.5,
       chromeOpacity: 0,
       chromeFade: 96,
       chromeBlur: 48,
@@ -97,7 +134,7 @@ describe("setAppearance", () => {
 
   it("rejects every out-of-range value", async () => {
     for (const patch of [
-      { blur: 0 },
+      { blur: -1 },
       { blur: 65 },
       { hue: 361 },
       { saturation: -1 },
@@ -105,9 +142,11 @@ describe("setAppearance", () => {
       { sidebarOpacity: 1.2 },
       { paneOpacity: 0.14 },
       { paneOpacity: 1.01 },
-      { paneBlur: -1 },
-      { paneBlur: 65 },
-      { overlayOpacity: 0.84 },
+      // The retired knobs are not appearance keys any more; the strict patch
+      // schema is what keeps a stale client from writing one back.
+      { paneBlur: 12 },
+      { paneGlass: true },
+      { overlayOpacity: 0.49 },
       { overlayOpacity: 1.01 },
       { chromeOpacity: -0.01 },
       { chromeOpacity: 1.01 },
@@ -118,14 +157,13 @@ describe("setAppearance", () => {
       { wallpaperBrightness: 0.29 },
       { wallpaperBrightness: 1.61 },
       { wallpaperBlur: -1 },
-      { wallpaperBlur: 41 },
+      { wallpaperBlur: 65 },
       { wallpaperSaturation: -0.01 },
       { wallpaperSaturation: 2.01 },
       { dim: 0.9 },
       { interactiveVibrancy: -1 },
       { interactiveVibrancy: 101 },
       { wallpaper: "nebula" },
-      { paneGlass: "yes" },
       { compactSolidPanes: "yes" },
       { nonsense: 1 },
     ]) {
@@ -138,7 +176,7 @@ describe("setAppearance", () => {
 
 describe("resetAppearance", () => {
   it("restores the defaults and publishes", async () => {
-    await harness.behavior.callRpc("setAppearance", { blur: 64, paneGlass: false });
+    await harness.behavior.callRpc("setAppearance", { blur: 64, paneOpacity: 0.96 });
     const before = harness.realtimeSignals.length;
     const result = await harness.behavior.callRpc("resetAppearance", null);
     expect(result).toMatchObject(DEFAULT_APPEARANCE);
@@ -264,6 +302,11 @@ describe("the bb liquid-glass command", () => {
     const show = await harness.behavior.runCli(["show"]);
     expect(show.exitCode).toBe(0);
     expect(show.stdout).toContain("sidebarOpacity");
+    // `show` prints the settings-UI names, not the stored key names.
+    expect(show.stdout).toContain("sidebarBlur");
+    expect(show.stdout).toContain("menuOpacity");
+    expect(show.stdout).not.toMatch(/^blur /m);
+    expect(show.stdout).not.toMatch(/^overlayOpacity /m);
 
     const set = await harness.behavior.runCli(["set", "wallpaper", "ocean"]);
     expect(set.exitCode).toBe(0);
@@ -310,6 +353,88 @@ describe("the bb liquid-glass command", () => {
     expect(reset.exitCode).toBe(0);
     const after = await harness.behavior.callRpc("getAppearance", null);
     expect(after).toMatchObject(DEFAULT_APPEARANCE);
+  });
+
+  it("takes the new names and the ones they replaced", async () => {
+    for (const [alias, key, viaNewName, viaOldName] of [
+      ["sidebarBlur", "blur", 32, 16],
+      ["headerTint", "chromeOpacity", 0.5, 0.25],
+      ["headerTintDepth", "chromeFade", 24, 12],
+      ["headerBlur", "chromeBlur", 12, 6],
+      ["menuOpacity", "overlayOpacity", 0.6, 0.8],
+      ["promptCollapsedOpacity", "composerIdleOpacity", 0.3, 0.5],
+      ["promptExpandedOpacity", "composerFocusOpacity", 0.9, 0.45],
+      ["wallpaperWash", "dim", 0.2, 0.1],
+      ["accentWash", "interactiveVibrancy", 40, 20],
+    ] as Array<[string, string, number, number]>) {
+      const withAlias = await harness.behavior.runCli(["set", alias, String(viaNewName)]);
+      expect(withAlias.exitCode, alias).toBe(0);
+      expect(await harness.behavior.callRpc("getAppearance", null)).toMatchObject({
+        [key]: viaNewName,
+      });
+
+      // The name the alias replaced keeps working, forever.
+      const withKey = await harness.behavior.runCli(["set", key, String(viaOldName)]);
+      expect(withKey.exitCode, key).toBe(0);
+      expect(await harness.behavior.callRpc("getAppearance", null)).toMatchObject({
+        [key]: viaOldName,
+      });
+    }
+  });
+
+  it("takes the new minimums the ranges opened up", async () => {
+    expect((await harness.behavior.runCli(["set", "sidebarBlur", "0"])).exitCode).toBe(0);
+    expect((await harness.behavior.runCli(["set", "menuOpacity", "0.5"])).exitCode).toBe(0);
+    expect(await harness.behavior.callRpc("getAppearance", null)).toMatchObject({
+      blur: 0,
+      overlayOpacity: 0.5,
+    });
+    expect((await harness.behavior.runCli(["set", "sidebarBlur", "-1"])).exitCode).toBe(2);
+    expect((await harness.behavior.runCli(["set", "menuOpacity", "0.49"])).exitCode).toBe(2);
+  });
+
+  it("folds a retired paneBlur into the wallpaper blur and says so", async () => {
+    await harness.behavior.runCli(["set", "wallpaperBlur", "10"]);
+    const folded = await harness.behavior.runCli(["set", "paneBlur", "12"]);
+    expect(folded.exitCode).toBe(0);
+    expect(folded.stdout).toContain("paneBlur is retired");
+    expect(await harness.behavior.callRpc("getAppearance", null)).toMatchObject({
+      wallpaperBlur: 22,
+    });
+
+    // The sum is capped at the range rather than rejected.
+    const capped = await harness.behavior.runCli(["set", "paneBlur", "64"]);
+    expect(capped.exitCode).toBe(0);
+    expect(capped.stdout).toContain("capped from 86");
+    // 22 + 64 = 86 asks past the merged knob's ceiling (the old pane-blur ceiling, 64).
+    expect(await harness.behavior.callRpc("getAppearance", null)).toMatchObject({
+      wallpaperBlur: 64,
+    });
+    expect((await harness.behavior.runCli(["set", "paneBlur", "65"])).exitCode).toBe(2);
+  });
+
+  it("turns a retired paneGlass into the pane opacity it used to pin", async () => {
+    const off = await harness.behavior.runCli(["set", "paneGlass", "off"]);
+    expect(off.exitCode).toBe(0);
+    expect(off.stdout).toContain("paneGlass is retired");
+    expect(await harness.behavior.callRpc("getAppearance", null)).toMatchObject({
+      paneOpacity: 0.96,
+    });
+
+    // From 0.96 "on" restores the default; from a glassier value it holds.
+    const on = await harness.behavior.runCli(["set", "paneGlass", "on"]);
+    expect(on.exitCode).toBe(0);
+    expect(await harness.behavior.callRpc("getAppearance", null)).toMatchObject({
+      paneOpacity: DEFAULT_APPEARANCE.paneOpacity,
+    });
+
+    await harness.behavior.runCli(["set", "paneOpacity", "0.23"]);
+    const held = await harness.behavior.runCli(["set", "paneGlass", "on"]);
+    expect(held.stdout).toContain("nothing changed");
+    expect(await harness.behavior.callRpc("getAppearance", null)).toMatchObject({
+      paneOpacity: 0.23,
+    });
+    expect((await harness.behavior.runCli(["set", "paneGlass", "maybe"])).exitCode).toBe(2);
   });
 
   it("refuses an unknown key, an out-of-range value, and an unknown command", async () => {

@@ -5,9 +5,11 @@
  *
  * The knob names and ranges mirror monocode's `src/lib/appearance.ts`: hue
  * 0-360 (default 240), saturation 0-100 (default 0), sidebar opacity 0.15-1
- * (default 0.85), blur 1-64 (default 24), main-pane glass (default on).
- * Phase two adds independent pane and wallpaper controls beside those original
- * knobs; normalization keeps older kv rows forward-compatible.
+ * (default 0.85), blur 0-64 (default 24). Phase two added independent pane and
+ * wallpaper controls beside those original knobs; phase three retired the two
+ * that duplicated another knob's pixels (`paneBlur`, `paneGlass`).
+ * `normalize` folds them into `wallpaperBlur`/`paneOpacity` so older kv rows
+ * keep rendering exactly what they rendered before.
  */
 import { z } from "zod";
 
@@ -28,17 +30,17 @@ export const RANGES = {
   accentSaturation: { min: 0, max: 100, step: 1 },
   accentLightness: { min: 20, max: 85, step: 1 },
   sidebarOpacity: { min: 0.15, max: 1, step: 0.01 },
-  blur: { min: 1, max: 64, step: 1 },
+  blur: { min: 0, max: 64, step: 1 },
   paneOpacity: { min: 0.15, max: 1, step: 0.01 },
-  paneBlur: { min: 0, max: 64, step: 1 },
-  overlayOpacity: { min: 0.85, max: 1, step: 0.01 },
+  overlayOpacity: { min: 0.5, max: 1, step: 0.01 },
   chromeOpacity: { min: 0, max: 1, step: 0.01 },
   chromeFade: { min: 0, max: 96, step: 1 },
   chromeBlur: { min: 0, max: 48, step: 1 },
   composerIdleOpacity: { min: 0.15, max: 1, step: 0.01 },
   composerFocusOpacity: { min: 0.15, max: 1, step: 0.01 },
   wallpaperBrightness: { min: 0.3, max: 1.6, step: 0.01 },
-  wallpaperBlur: { min: 0, max: 40, step: 1 },
+  /* Also holds what the retired pane-blur knob used to add (its ceiling was 64). */
+  wallpaperBlur: { min: 0, max: 64, step: 1 },
   wallpaperSaturation: { min: 0, max: 2, step: 0.01 },
   dim: { min: 0, max: 0.8, step: 0.01 },
   interactiveVibrancy: { min: 0, max: 100, step: 1 },
@@ -74,13 +76,11 @@ export const appearanceSchema = z
     accentSaturation: z.number().min(RANGES.accentSaturation.min).max(RANGES.accentSaturation.max),
     accentLightness: z.number().min(RANGES.accentLightness.min).max(RANGES.accentLightness.max),
     sidebarOpacity: z.number().min(RANGES.sidebarOpacity.min).max(RANGES.sidebarOpacity.max),
-    paneGlass: z.boolean(),
     blur: z.number().min(RANGES.blur.min).max(RANGES.blur.max),
     paneOpacity: z
       .number()
       .min(RANGES.paneOpacity.min)
       .max(RANGES.paneOpacity.max),
-    paneBlur: z.number().min(RANGES.paneBlur.min).max(RANGES.paneBlur.max),
     overlayOpacity: z
       .number()
       .min(RANGES.overlayOpacity.min)
@@ -134,10 +134,8 @@ export const DEFAULT_APPEARANCE: Appearance = {
   accentSaturation: 92,
   accentLightness: 62,
   sidebarOpacity: 0.85,
-  paneGlass: true,
   blur: 24,
   paneOpacity: 0.85,
-  paneBlur: 24,
   overlayOpacity: 0.94,
   chromeOpacity: 0.72,
   chromeFade: 40,
@@ -149,7 +147,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   wallpaperUrl: null,
   wallpaperPath: null,
   wallpaperBrightness: 1,
-  wallpaperBlur: 0,
+  wallpaperBlur: 24,
   wallpaperSaturation: 1.1,
   dim: 0.35,
   interactiveVibrancy: 70,
@@ -233,14 +231,54 @@ function resolveAccent(
 }
 
 /**
+ * The two knobs phase three retired, and what they used to mean.
+ *
+ * `paneBlur` was added into the same `blur()` as `wallpaperBlur` on the
+ * wallpaper layer -- only the sum was ever rendered -- and `paneGlass: false`
+ * both zeroed that contribution and pinned the main pane at 0.96. So a stored
+ * row folds losslessly into `wallpaperBlur` and `paneOpacity`. The old
+ * defaults are needed as well, because a row can carry one retired key without
+ * the other and the sum has to come out where it came out before.
+ */
+const RETIRED_PANE_BLUR_DEFAULT = 24;
+const RETIRED_WALLPAPER_BLUR_DEFAULT = 0;
+const RETIRED_PANE_GLASS_OFF_OPACITY = 0.96;
+
+/**
+ * Fold `paneBlur`/`paneGlass` out of a stored row. Runs before validation, so
+ * an old row is migrated rather than rejected: a rejected row falls back to the
+ * defaults wholesale, which would silently reset every other knob too.
+ */
+function migrateRetiredKeys(source: Record<string, unknown>): Record<string, unknown> {
+  const hasPaneBlur = typeof source.paneBlur === "number";
+  const hasPaneGlass = typeof source.paneGlass === "boolean";
+  if (!hasPaneBlur && !hasPaneGlass) return source;
+
+  const migrated = { ...source };
+  const paneGlassOn = source.paneGlass !== false;
+  const paneBlur = hasPaneBlur ? (source.paneBlur as number) : RETIRED_PANE_BLUR_DEFAULT;
+  const wallpaperBlur = typeof source.wallpaperBlur === "number"
+    ? source.wallpaperBlur
+    : RETIRED_WALLPAPER_BLUR_DEFAULT;
+  migrated.wallpaperBlur = clamp(
+    wallpaperBlur + (paneGlassOn ? paneBlur : 0),
+    RANGES.wallpaperBlur.min,
+    RANGES.wallpaperBlur.max,
+  );
+  if (!paneGlassOn) migrated.paneOpacity = RETIRED_PANE_GLASS_OFF_OPACITY;
+  return migrated;
+}
+
+/**
  * Coerce anything stored or received into a valid Appearance. Both schemas are
  * strict, and the RPC reply carries two extra fields (`activeThemeId`,
  * `updatedAt`), so unknown keys are dropped before validation rather than
- * failing the whole row.
+ * failing the whole row -- and the retired keys are folded in before that, so
+ * dropping them can never reset the knob they used to feed.
  */
 export function normalize(input: unknown): Appearance {
   if (typeof input !== "object" || input === null) return DEFAULT_APPEARANCE;
-  const source = input as Record<string, unknown>;
+  const source = migrateRetiredKeys(input as Record<string, unknown>);
   const known: Record<string, unknown> = {};
   for (const key of Object.keys(DEFAULT_APPEARANCE)) {
     if (key in source) known[key] = source[key];
@@ -285,9 +323,6 @@ export function resolveVars(
       ),
     ),
     "--lg-blur": `${Math.round(clamp(appearance.blur, RANGES.blur.min, RANGES.blur.max))}px`,
-    "--lg-pane-blur": `${Math.round(
-      clamp(appearance.paneBlur, RANGES.paneBlur.min, RANGES.paneBlur.max),
-    )}px`,
     "--lg-overlay-a": String(
       clamp(appearance.overlayOpacity, RANGES.overlayOpacity.min, RANGES.overlayOpacity.max),
     ),
@@ -352,7 +387,6 @@ export function resolveVars(
       "data-lg-wallpaper": custom === null && appearance.wallpaper === "custom"
         ? "aurora"
         : appearance.wallpaper,
-      "data-lg-pane-glass": appearance.paneGlass ? "on" : "off",
       "data-lg-compact-solid": appearance.compactSolidPanes ? "on" : "off",
     },
   };
@@ -369,7 +403,6 @@ export const MANAGED_VARS = [
   "--lg-sidebar-a",
   "--lg-pane-a",
   "--lg-blur",
-  "--lg-pane-blur",
   "--lg-overlay-a",
   "--lg-chrome-a",
   "--lg-chrome-fade",
@@ -386,7 +419,6 @@ export const MANAGED_VARS = [
 
 export const MANAGED_ATTRIBUTES = [
   "data-lg-wallpaper",
-  "data-lg-pane-glass",
   "data-lg-compact-solid",
 ] as const;
 

@@ -4,6 +4,7 @@ import { contrastRatio, hslToRgb } from "./color.mjs";
 import {
   ACCENT_SWATCHES,
   DEFAULT_APPEARANCE,
+  MANAGED_ATTRIBUTES,
   MANAGED_VARS,
   customWallpaperImage,
   normalize,
@@ -87,7 +88,6 @@ describe("resolveVars", () => {
       "--lg-sidebar-a": "0.85",
       "--lg-pane-a": "0.85",
       "--lg-blur": "24px",
-      "--lg-pane-blur": "24px",
       "--lg-overlay-a": "0.94",
       "--lg-chrome-a": "0.72",
       "--lg-chrome-fade": "40px",
@@ -95,14 +95,13 @@ describe("resolveVars", () => {
       "--lg-composer-idle-a": "0.6",
       "--lg-composer-focus-a": "1",
       "--lg-wp-brightness": "1",
-      "--lg-wp-blur": "0px",
+      "--lg-wp-blur": "24px",
       "--lg-wp-sat": "1.1",
       "--lg-dim": "0.35",
       "--lg-vibrancy": "70",
     });
     expect(attributes).toEqual({
       "data-lg-wallpaper": "aurora",
-      "data-lg-pane-glass": "on",
       "data-lg-compact-solid": "on",
     });
     for (const name of Object.keys(vars)) {
@@ -110,12 +109,12 @@ describe("resolveVars", () => {
     }
   });
 
-  it("turns the pane-glass toggle off", () => {
-    const { attributes } = resolveVars(
-      { ...DEFAULT_APPEARANCE, paneGlass: false },
-      "dark",
-    );
-    expect(attributes["data-lg-pane-glass"]).toBe("off");
+  it("emits no variable or attribute for the retired pane-glass knobs", () => {
+    const { vars, attributes } = resolveVars(DEFAULT_APPEARANCE, "dark");
+    expect(vars).not.toHaveProperty("--lg-pane-blur");
+    expect(attributes).not.toHaveProperty("data-lg-pane-glass");
+    expect(MANAGED_VARS).not.toContain("--lg-pane-blur" as never);
+    expect(MANAGED_ATTRIBUTES).not.toContain("data-lg-pane-glass" as never);
   });
 
   it("falls back to a preset when custom is selected with no usable source", () => {
@@ -215,5 +214,128 @@ describe("normalize", () => {
     expect(normalize({ blur: 40 })).toEqual({ ...DEFAULT_APPEARANCE, blur: 40 });
     expect(normalize({ blur: 4000 })).toEqual(DEFAULT_APPEARANCE);
     expect(normalize(undefined)).toEqual(DEFAULT_APPEARANCE);
+  });
+});
+
+/**
+ * `paneBlur` was added into the same `blur()` as `wallpaperBlur`, and
+ * `paneGlass: false` zeroed that contribution while pinning the main pane at
+ * 0.96. The migration has to land on exactly the pixels the old row rendered.
+ */
+describe("the retired paneBlur/paneGlass migration", () => {
+  /** What the old stylesheet put in `blur()` for a stored row. */
+  const renderedBlur = (row: { wallpaperBlur?: number; paneBlur?: number; paneGlass?: boolean }) =>
+    (row.wallpaperBlur ?? 0) + (row.paneGlass === false ? 0 : (row.paneBlur ?? 24));
+
+  const storedRow = {
+    hue: 240,
+    saturation: 0,
+    accentHue: 338.38862559241704,
+    accentSaturation: 94.61883408071749,
+    accentLightness: 56.27450980392157,
+    sidebarOpacity: 0.15,
+    paneGlass: true,
+    blur: 1,
+    paneOpacity: 0.23,
+    paneBlur: 12,
+    overlayOpacity: 0.85,
+    chromeOpacity: 0,
+    chromeFade: 13,
+    chromeBlur: 10,
+    composerIdleOpacity: 0.44,
+    composerFocusOpacity: 0.75,
+    compactSolidPanes: false,
+    wallpaper: "custom" as const,
+    wallpaperUrl: null,
+    wallpaperPath: "/home/pictures/wall.jpeg",
+    wallpaperBrightness: 0.87,
+    wallpaperBlur: 0,
+    wallpaperSaturation: 0.73,
+    dim: 0.15,
+    interactiveVibrancy: 100,
+  };
+
+  it("folds paneBlur into wallpaperBlur and drops both retired keys", () => {
+    const migrated = normalize(storedRow);
+    expect(migrated.wallpaperBlur).toBe(renderedBlur(storedRow));
+    expect(migrated.wallpaperBlur).toBe(12);
+    expect(migrated).not.toHaveProperty("paneBlur");
+    expect(migrated).not.toHaveProperty("paneGlass");
+  });
+
+  it("round-trips a pre-migration row to identical rendered vars", () => {
+    for (const palette of ["dark", "light"] as const) {
+      const { vars, attributes } = resolveVars(normalize(storedRow), palette, 7);
+      // Every var the old row rendered, at the value it rendered it at. The
+      // wallpaper blur is the sum the two old knobs always fed one `blur()`.
+      expect(vars["--lg-wp-blur"]).toBe(`${renderedBlur(storedRow)}px`);
+      expect(vars["--lg-pane-a"]).toBe("0.23");
+      expect(vars["--lg-blur"]).toBe("1px");
+      expect(vars["--lg-overlay-a"]).toBe("0.85");
+      expect(vars["--lg-sidebar-a"]).toBe("0.15");
+      expect(vars["--lg-chrome-a"]).toBe("0");
+      expect(vars["--lg-chrome-fade"]).toBe("13px");
+      expect(vars["--lg-chrome-blur"]).toBe("10px");
+      expect(vars["--lg-composer-idle-a"]).toBe("0.44");
+      expect(vars["--lg-composer-focus-a"]).toBe("0.75");
+      expect(vars["--lg-wp-brightness"]).toBe("0.87");
+      expect(vars["--lg-wp-sat"]).toBe("0.73");
+      expect(vars["--lg-dim"]).toBe("0.15");
+      expect(vars["--lg-vibrancy"]).toBe("100");
+      expect(attributes["data-lg-compact-solid"]).toBe("off");
+      expect(attributes["data-lg-wallpaper"]).toBe("custom");
+    }
+  });
+
+  it("normalizing twice is a no-op", () => {
+    const once = normalize(storedRow);
+    expect(normalize(once)).toEqual(once);
+  });
+
+  it("pins the pane at 0.96 and drops the pane blur when glass was off", () => {
+    const off = { ...storedRow, paneGlass: false };
+    const migrated = normalize(off);
+    expect(migrated.paneOpacity).toBe(0.96);
+    expect(migrated.wallpaperBlur).toBe(renderedBlur(off));
+    expect(migrated.wallpaperBlur).toBe(0);
+    expect(resolveVars(migrated, "dark").vars["--lg-pane-a"]).toBe("0.96");
+  });
+
+  it("keeps a fresh install rendering the old default total", () => {
+    // Old: wallpaperBlur 0 + paneBlur 24. New: wallpaperBlur 24, one knob.
+    expect(DEFAULT_APPEARANCE.wallpaperBlur).toBe(renderedBlur({}));
+    expect(resolveVars(DEFAULT_APPEARANCE, "dark").vars["--lg-wp-blur"]).toBe("24px");
+  });
+
+  it("migrates a row that carries only one of the retired keys", () => {
+    // paneGlass alone: the pane blur it gated was still at its old default.
+    expect(normalize({ paneGlass: true }).wallpaperBlur).toBe(24);
+    expect(normalize({ paneGlass: false }).wallpaperBlur).toBe(0);
+    expect(normalize({ paneGlass: false }).paneOpacity).toBe(0.96);
+    // paneBlur alone: glass was on by default, so it still adds.
+    expect(normalize({ paneBlur: 40, wallpaperBlur: 0 }).wallpaperBlur).toBe(40);
+  });
+
+  it("caps a migrated sum at the wallpaper blur range instead of failing the row", () => {
+    // A rejected row falls back to the defaults wholesale, which would reset
+    // every other knob the user set; clamping keeps the rest of the row.
+    const migrated = normalize({ ...storedRow, wallpaperBlur: 40, paneBlur: 64 });
+    // 104px asked; the merged knob's ceiling is the old pane-blur ceiling, 64.
+    expect(migrated.wallpaperBlur).toBe(64);
+    expect(migrated.paneOpacity).toBe(0.23);
+    expect(migrated.dim).toBe(0.15);
+  });
+
+  it("never lets a retired or unknown key reset another value to its default", () => {
+    const migrated = normalize({ ...storedRow, someRetiredKnob: 3 });
+    expect(migrated.sidebarOpacity).toBe(0.15);
+    expect(migrated.blur).toBe(1);
+    expect(migrated.overlayOpacity).toBe(0.85);
+    expect(migrated.wallpaperBlur).toBe(12);
+  });
+
+  it("leaves a new-format row alone", () => {
+    const current = { ...DEFAULT_APPEARANCE, wallpaperBlur: 10, paneOpacity: 0.4 };
+    expect(normalize(current)).toEqual(current);
   });
 });

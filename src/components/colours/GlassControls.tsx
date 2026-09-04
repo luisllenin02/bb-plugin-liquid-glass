@@ -1,93 +1,47 @@
 import { RANGES, type Appearance } from "../../appearance.js";
-import type { BbThemeMode } from "../../theme-mode.js";
-import { Row, Segmented, Slider, Toggle } from "../rows.js";
+import { Row, Slider } from "../rows.js";
 
-const THEME_MODES: ReadonlyArray<{ value: BbThemeMode; label: string }> = [
-  { value: "system", label: "System" },
-  { value: "dark", label: "Dark" },
-  { value: "light", label: "Light" },
-];
-
-export function GlassControls({
+/** The "Transparency" group: how solid each surface family is. */
+export function TransparencyControls({
   appearance,
-  mode,
-  onModeChange,
   onChange,
 }: {
   appearance: Appearance;
-  mode: BbThemeMode;
-  onModeChange: (mode: BbThemeMode) => void;
   onChange: (patch: Partial<Appearance>) => void;
 }) {
-  const opacityPercent = Math.round(appearance.sidebarOpacity * 100);
+  const sidebarOpacityPercent = Math.round(appearance.sidebarOpacity * 100);
   const paneOpacityPercent = Math.round(appearance.paneOpacity * 100);
   const overlayOpacityPercent = Math.round(appearance.overlayOpacity * 100);
   const chromeOpacityPercent = Math.round(appearance.chromeOpacity * 100);
+  const chromeFadeDisabled = appearance.chromeOpacity === 0;
   return (
     <div>
-      <Row
-        label="Theme"
-        description="System follows the OS appearance; palette cards below switch Liquid Glass itself."
-      >
-        <Segmented label="Theme" value={mode} options={THEME_MODES} onChange={onModeChange} />
-      </Row>
-      <Row label="Sidebar opacity" description="How much wallpaper shows through the sidebar.">
+      <Row label="Sidebar" description="How solid the sidebar is.">
         <Slider
-          label="Sidebar opacity"
-          value={opacityPercent}
-          display={`${opacityPercent}%`}
+          label="Sidebar"
+          value={sidebarOpacityPercent}
+          display={`${sidebarOpacityPercent}%`}
           min={Math.round(RANGES.sidebarOpacity.min * 100)}
           max={Math.round(RANGES.sidebarOpacity.max * 100)}
           onChange={(percent) => onChange({ sidebarOpacity: percent / 100 })}
         />
       </Row>
-      <Row label="Blur radius" description="Background blur behind the sidebar, cards, and popovers.">
+      <Row label="Main pane" description="How solid the thread and editor area is.">
         <Slider
-          label="Blur radius"
-          value={Math.round(appearance.blur)}
-          display={String(Math.round(appearance.blur))}
-          min={RANGES.blur.min}
-          max={RANGES.blur.max}
-          onChange={(blur) => onChange({ blur })}
+          label="Main pane"
+          value={paneOpacityPercent}
+          display={`${paneOpacityPercent}%`}
+          min={Math.round(RANGES.paneOpacity.min * 100)}
+          max={Math.round(RANGES.paneOpacity.max * 100)}
+          onChange={(percent) => onChange({ paneOpacity: percent / 100 })}
         />
       </Row>
-      <Row label="Main pane glass" description="Extend translucency to threads and editors.">
-        <Toggle
-          label="Main pane glass"
-          on={appearance.paneGlass}
-          onChange={(paneGlass) => onChange({ paneGlass })}
-        />
-      </Row>
-      <fieldset
-        aria-label="Main pane glass controls"
-        disabled={!appearance.paneGlass}
-        className="ml-4 border-l border-border pl-4 disabled:opacity-50"
+      <Row
+        label="Menus, sheets and cards"
+        description="How solid menus, dialogs, drawers, cards and the phone status pills are."
       >
-        <Row label="Pane opacity" description="The main pane tint while glass is on.">
-          <Slider
-            label="Pane opacity"
-            value={paneOpacityPercent}
-            display={`${paneOpacityPercent}%`}
-            min={Math.round(RANGES.paneOpacity.min * 100)}
-            max={Math.round(RANGES.paneOpacity.max * 100)}
-            onChange={(percent) => onChange({ paneOpacity: percent / 100 })}
-          />
-        </Row>
-        <Row label="Pane blur" description="Frost behind threads and editors. Applied once to the wallpaper layer beneath the panes rather than through them each frame, so typing and scrolling stay quick.">
-          <Slider
-            label="Pane blur"
-            value={Math.round(appearance.paneBlur)}
-            display={`${Math.round(appearance.paneBlur)} px`}
-            min={RANGES.paneBlur.min}
-            max={RANGES.paneBlur.max}
-            onChange={(paneBlur) => onChange({ paneBlur })}
-          />
-        </Row>
-      </fieldset>
-      <h3 className="pt-2 text-sm font-medium text-foreground">Sheets and chrome</h3>
-      <Row label="Overlay opacity" description="Keeps menus and sheets unreadable through the glass.">
         <Slider
-          label="Overlay opacity"
+          label="Menus, sheets and cards"
           value={overlayOpacityPercent}
           display={`${overlayOpacityPercent}%`}
           min={Math.round(RANGES.overlayOpacity.min * 100)}
@@ -95,9 +49,12 @@ export function GlassControls({
           onChange={(percent) => onChange({ overlayOpacity: percent / 100 })}
         />
       </Row>
-      <Row label="Chrome opacity" description="Frost strength at the pane's outer edge.">
+      <Row
+        label="Header and dock tint"
+        description="How much colour the top bar and the bar around the prompt add. 0 leaves them clear."
+      >
         <Slider
-          label="Chrome opacity"
+          label="Header and dock tint"
           value={chromeOpacityPercent}
           display={`${chromeOpacityPercent}%`}
           min={Math.round(RANGES.chromeOpacity.min * 100)}
@@ -105,29 +62,35 @@ export function GlassControls({
           onChange={(percent) => onChange({ chromeOpacity: percent / 100 })}
         />
       </Row>
-      <Row label="Chrome fade" description="Distance over which chrome fades into pane glass.">
+      <fieldset
+        aria-label="Tint depth controls"
+        disabled={chromeFadeDisabled}
+        className="m-0 border-0 p-0 disabled:opacity-50"
+      >
+        <Row
+          label="Tint depth"
+          description={
+            chromeFadeDisabled
+              ? "No effect while the tint is 0."
+              : "How far that tint reaches before it fades out."
+          }
+        >
+          <Slider
+            label="Tint depth"
+            value={Math.round(appearance.chromeFade)}
+            display={`${Math.round(appearance.chromeFade)} px`}
+            min={RANGES.chromeFade.min}
+            max={RANGES.chromeFade.max}
+            onChange={(chromeFade) => onChange({ chromeFade })}
+          />
+        </Row>
+      </fieldset>
+      <Row
+        label="Prompt box, collapsed"
+        description="How solid the thread prompt box is when it is one line tall."
+      >
         <Slider
-          label="Chrome fade"
-          value={Math.round(appearance.chromeFade)}
-          display={`${Math.round(appearance.chromeFade)} px`}
-          min={RANGES.chromeFade.min}
-          max={RANGES.chromeFade.max}
-          onChange={(chromeFade) => onChange({ chromeFade })}
-        />
-      </Row>
-      <Row label="Chrome blur" description="Backdrop blur at the pane's outer edge.">
-        <Slider
-          label="Chrome blur"
-          value={Math.round(appearance.chromeBlur)}
-          display={`${Math.round(appearance.chromeBlur)} px`}
-          min={RANGES.chromeBlur.min}
-          max={RANGES.chromeBlur.max}
-          onChange={(chromeBlur) => onChange({ chromeBlur })}
-        />
-      </Row>
-      <Row label="Idle prompt box" description="How solid the thread prompt box is while the caret is elsewhere. It goes solid on focus.">
-        <Slider
-          label="Idle prompt box"
+          label="Prompt box, collapsed"
           value={Math.round(appearance.composerIdleOpacity * 100)}
           display={`${Math.round(appearance.composerIdleOpacity * 100)}%`}
           min={Math.round(RANGES.composerIdleOpacity.min * 100)}
@@ -135,71 +98,17 @@ export function GlassControls({
           onChange={(percent) => onChange({ composerIdleOpacity: percent / 100 })}
         />
       </Row>
-      <Row label="Focused prompt box" description="How solid the thread prompt box is while it holds the caret. 100% keeps typing on a solid surface.">
+      <Row
+        label="Prompt box, expanded"
+        description="How solid it is once it grows. 100% keeps typing on a solid surface."
+      >
         <Slider
-          label="Focused prompt box"
+          label="Prompt box, expanded"
           value={Math.round(appearance.composerFocusOpacity * 100)}
           display={`${Math.round(appearance.composerFocusOpacity * 100)}%`}
           min={Math.round(RANGES.composerFocusOpacity.min * 100)}
           max={Math.round(RANGES.composerFocusOpacity.max * 100)}
           onChange={(percent) => onChange({ composerFocusOpacity: percent / 100 })}
-        />
-      </Row>
-      <Row label="Compact solid panes" description="Main pane and sheets go near-solid on phones; the sidebar keeps its glass.">
-        <Toggle
-          label="Compact solid panes"
-          on={appearance.compactSolidPanes}
-          onChange={(compactSolidPanes) => onChange({ compactSolidPanes })}
-        />
-      </Row>
-      <Row label="Wallpaper brightness" description="Brighten or darken the wallpaper itself.">
-        <Slider
-          label="Wallpaper brightness"
-          value={Math.round(appearance.wallpaperBrightness * 100)}
-          display={`${Math.round(appearance.wallpaperBrightness * 100)}%`}
-          min={Math.round(RANGES.wallpaperBrightness.min * 100)}
-          max={Math.round(RANGES.wallpaperBrightness.max * 100)}
-          onChange={(percent) => onChange({ wallpaperBrightness: percent / 100 })}
-        />
-      </Row>
-      <Row label="Wallpaper blur" description="Soften wallpaper detail before pane glass.">
-        <Slider
-          label="Wallpaper blur"
-          value={Math.round(appearance.wallpaperBlur)}
-          display={String(Math.round(appearance.wallpaperBlur))}
-          min={RANGES.wallpaperBlur.min}
-          max={RANGES.wallpaperBlur.max}
-          onChange={(wallpaperBlur) => onChange({ wallpaperBlur })}
-        />
-      </Row>
-      <Row label="Wallpaper saturation" description="Wallpaper colour intensity.">
-        <Slider
-          label="Wallpaper saturation"
-          value={Math.round(appearance.wallpaperSaturation * 100)}
-          display={`${Math.round(appearance.wallpaperSaturation * 100)}%`}
-          min={Math.round(RANGES.wallpaperSaturation.min * 100)}
-          max={Math.round(RANGES.wallpaperSaturation.max * 100)}
-          onChange={(percent) => onChange({ wallpaperSaturation: percent / 100 })}
-        />
-      </Row>
-      <Row label="Wallpaper dim" description="Push the wallpaper back before panes go over it.">
-        <Slider
-          label="Wallpaper dim"
-          value={Math.round(appearance.dim * 100)}
-          display={`${Math.round(appearance.dim * 100)}%`}
-          min={Math.round(RANGES.dim.min * 100)}
-          max={Math.round(RANGES.dim.max * 100)}
-          onChange={(percent) => onChange({ dim: percent / 100 })}
-        />
-      </Row>
-      <Row label="Interactive vibrancy" description="Strengthens accent washes on interactive controls.">
-        <Slider
-          label="Interactive vibrancy"
-          value={Math.round(appearance.interactiveVibrancy)}
-          display={`${Math.round(appearance.interactiveVibrancy)}%`}
-          min={RANGES.interactiveVibrancy.min}
-          max={RANGES.interactiveVibrancy.max}
-          onChange={(interactiveVibrancy) => onChange({ interactiveVibrancy })}
         />
       </Row>
     </div>

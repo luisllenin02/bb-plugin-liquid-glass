@@ -3,22 +3,29 @@ import { useRealtime, useRpc } from "@get-bb/plugin-sdk/app";
 import { toast } from "sonner";
 
 import type { rpcContract } from "../../server.js";
-import type { Appearance } from "../appearance.js";
+import { RANGES, type Appearance } from "../appearance.js";
 import {
   APPEARANCE_EVENT,
   readBbThemeMode,
   writeBbThemeMode,
   type BbThemeMode,
 } from "../theme-mode.js";
-import { ActionButton } from "./rows.js";
+import { ActionButton, Row, Segmented, Slider, Toggle } from "./rows.js";
 import { ComposerDockRow, ContextMeterRow } from "./ComposerDockRow.js";
 import { AccentPicker } from "./colours/AccentPicker.js";
-import { AdvancedControls } from "./colours/AdvancedControls.js";
-import { GlassControls } from "./colours/GlassControls.js";
+import { BlurControls } from "./colours/BlurControls.js";
+import { TransparencyControls } from "./colours/GlassControls.js";
 import { Section, Subsection } from "./colours/Section.js";
 import { ShellTintPicker } from "./colours/ShellTintPicker.js";
 import { ThemeCards } from "./colours/ThemeCards.js";
 import { WallpaperCards } from "./colours/WallpaperCards.js";
+import { WallpaperFilterControls } from "./colours/WallpaperFilterControls.js";
+
+const THEME_MODES: ReadonlyArray<{ value: BbThemeMode; label: string }> = [
+  { value: "system", label: "System" },
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+];
 
 type AppearanceState = Appearance & {
   activeThemeId: string | null;
@@ -95,47 +102,75 @@ export function AppearanceSection() {
   }
 
   const light = appearance.activeThemeId === "plugin:liquid-glass:liquid-glass-light";
+  const palette = light ? "light" : "dark";
 
   return (
     <div className="flex w-full max-w-3xl flex-col gap-8">
-      <Section title="Glass" hint="Transparency, blur, wallpaper filters, and interaction strength.">
-        <GlassControls
-          appearance={appearance}
-          mode={mode}
-          onModeChange={(next) => {
-            setMode(next);
-            writeBbThemeMode(next);
-          }}
-          onChange={apply}
-        />
-      </Section>
-
-      <Section title="Colours" hint="Pick a palette, accent, and shell tint without chasing sliders.">
-        <Subsection title="Palettes" hint="Apply switches bb only after your explicit click.">
+      <Section title="Theme" hint="Palette, shell colour and accent, in one place.">
+        <Subsection title="Palette" hint="Dark or Light glass.">
           <ThemeCards
             appearance={appearance}
             activeThemeId={appearance.activeThemeId}
             onApply={applyTheme}
           />
         </Subsection>
-        <AccentPicker appearance={appearance} onChange={apply} />
+        <Row label="Follow the system" description="Switch palette with the OS.">
+          <Segmented label="Follow the system" value={mode} options={THEME_MODES} onChange={(next) => {
+            setMode(next);
+            writeBbThemeMode(next);
+          }} />
+        </Row>
         <ShellTintPicker appearance={appearance} light={light} onChange={apply} />
+        <AccentPicker appearance={appearance} palette={palette} onChange={apply} />
+        <Row
+          label="Interactive vibrancy"
+          description="Strengthens accent washes on interactive controls."
+        >
+          <Slider
+            label="Interactive vibrancy"
+            value={Math.round(appearance.interactiveVibrancy)}
+            display={`${Math.round(appearance.interactiveVibrancy)}%`}
+            min={RANGES.interactiveVibrancy.min}
+            max={RANGES.interactiveVibrancy.max}
+            onChange={(interactiveVibrancy) => apply({ interactiveVibrancy })}
+          />
+        </Row>
       </Section>
 
-      <Section title="Wallpaper" hint="Gradient presets or your own image behind every glass pane.">
+      <Section title="Transparency" hint="How solid each surface family is.">
+        <TransparencyControls appearance={appearance} onChange={apply} />
+      </Section>
+
+      <Section title="Blur" hint="Menus, dialogs and cards are not blur-controlled here — they use a fixed backdrop blur.">
+        <BlurControls appearance={appearance} onChange={apply} />
+      </Section>
+
+      <Section title="Wallpaper" hint="Preset gradient, an image URL, or a file on this machine.">
         <WallpaperCards
           appearance={appearance}
           onChange={apply}
           onTestPath={(path) => rpc.call("testWallpaper", { path })}
         />
+        <WallpaperFilterControls appearance={appearance} onChange={apply} />
+      </Section>
+
+      <Section title="Phones">
+        <Row
+          label="Solid panels on phones"
+          description="On small screens the main pane, sheets, the sidebar drawer and the side panel go nearly solid so text stays readable over the wallpaper."
+        >
+          <Toggle
+            label="Solid panels on phones"
+            on={appearance.compactSolidPanes}
+            onChange={(compactSolidPanes) => apply({ compactSolidPanes })}
+          />
+        </Row>
       </Section>
 
       <Section title="Composer" hint="What sits between the chat and the prompt box.">
         <ComposerDockRow />
         <ContextMeterRow />
       </Section>
-
-      <AdvancedControls appearance={appearance} onChange={apply} />
 
       <div className="flex justify-end">
         <ActionButton onClick={reset}>Reset to monocode defaults</ActionButton>

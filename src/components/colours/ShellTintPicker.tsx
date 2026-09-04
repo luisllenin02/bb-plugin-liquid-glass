@@ -1,6 +1,7 @@
-import type { Appearance } from "../../appearance.js";
+import { RANGES, type Appearance } from "../../appearance.js";
 import { hexToHsl, hslToHex } from "../../lib/color.js";
 import { cn } from "../../lib/utils.js";
+import { Row, Slider } from "../rows.js";
 import { CustomColourControl } from "./CustomColourControl.js";
 import { Subsection } from "./Section.js";
 import { WALLPAPER_PREVIEWS } from "./WallpaperCards.js";
@@ -28,10 +29,12 @@ export function ShellTintPicker({
   const currentHex = hslToHex({ h: appearance.hue, s: appearance.saturation, l: 50 });
   const wallpaper = appearance.wallpaper === "custom" ? "aurora" : appearance.wallpaper;
 
+  const hueDisabled = appearance.saturation === 0;
+
   return (
     <Subsection
-      title="Shell tint"
-      hint="A quiet cast over the shell; Neutral is monocode's hue 240 / 0%."
+      title="Shell colour"
+      hint="The colour cast over every panel, menu and card. Grey by default."
     >
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {SHELL_TINTS.map((tint) => {
@@ -87,6 +90,37 @@ export function ShellTintPicker({
           onChange({ hue: Math.round(hsl.h), saturation: Math.round(hsl.s) });
         }}
       />
+      <fieldset
+        aria-label="Shell hue controls"
+        disabled={hueDisabled}
+        className="m-0 border-0 p-0 disabled:opacity-50"
+      >
+        <Row
+          label="Hue"
+          description={
+            hueDisabled ? "No effect while colour strength is 0." : "Fine-tune the shell tint hue."
+          }
+        >
+          <Slider
+            label="Hue"
+            value={Math.round(appearance.hue)}
+            display={`${Math.round(appearance.hue)}°`}
+            min={RANGES.hue.min}
+            max={RANGES.hue.max}
+            onChange={(hue) => onChange({ hue })}
+          />
+        </Row>
+      </fieldset>
+      <Row label="Saturation" description="Fine-tune the shell tint saturation.">
+        <Slider
+          label="Saturation"
+          value={Math.round(appearance.saturation)}
+          display={`${Math.round(appearance.saturation)}%`}
+          min={RANGES.saturation.min}
+          max={RANGES.saturation.max}
+          onChange={(saturation) => onChange({ saturation })}
+        />
+      </Row>
     </Subsection>
   );
 }

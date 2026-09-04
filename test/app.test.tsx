@@ -7,7 +7,8 @@ import {
 } from "@get-bb/plugin-sdk/testing/app";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_APPEARANCE } from "../src/appearance.js";
+import { DEFAULT_APPEARANCE, RANGES } from "../src/appearance.js";
+import { reachableAccentBand } from "../src/components/colours/AccentPicker.js";
 
 const app = await loadPluginApp(() => import("../app.js"));
 
@@ -44,40 +45,97 @@ describe("the Liquid Glass settings section", () => {
     expect(app.settingsSections[0]!.title).toBe("Liquid Glass");
   });
 
-  it("renders monocode's Appearance rows plus Accent and Wallpaper", async () => {
+  it("renders the regrouped rows: Theme, Transparency, Blur, Wallpaper, Phones, Composer", async () => {
     const slot = renderSection();
     for (const label of [
-      "Theme",
-      "Sidebar opacity",
-      "Blur radius",
+      "Follow the system",
+      "Shell colour",
       "Hue",
       "Saturation",
-      "Main pane glass",
-      "Pane opacity",
-      "Overlay opacity",
-      "Chrome opacity",
-      "Chrome fade",
-      "Chrome blur",
-      "Compact solid panes",
-      "Accent",
-      "Wallpaper",
-      "Wallpaper brightness",
-      "Wallpaper blur",
-      "Wallpaper saturation",
-      "Wallpaper dim",
+      "Accent colour",
+      "Accent hue",
+      "Accent saturation",
+      "Accent brightness",
       "Interactive vibrancy",
+      "Sidebar",
+      "Main pane",
+      "Menus, sheets and cards",
+      "Header and dock tint",
+      "Tint depth",
+      "Prompt box, collapsed",
+      "Prompt box, expanded",
+      "Sidebar frost",
+      "Header and prompt box frost",
+      "Wallpaper blur",
+      "Wallpaper brightness",
+      "Wallpaper colour",
+      "Wallpaper wash",
+      "Solid panels on phones",
+      "Status cards above the prompt",
+      "Context meter",
     ]) {
       expect(await slot.findByText(label)).toBeTruthy();
     }
     expect(await slot.findByText("Reset to monocode defaults")).toBeTruthy();
+    // The retired controls are gone entirely.
+    expect(slot.queryByText("Main pane glass")).toBeNull();
+    expect(slot.queryByText("Pane blur")).toBeNull();
+    expect(slot.queryByText("Advanced")).toBeNull();
     slot.lifecycle.unmount();
   });
 
-  it("disables the pane controls while main-pane glass is off", async () => {
-    const slot = renderSection({ getAppearance: () => reply({ paneGlass: false }) });
-    const group = await slot.findByLabelText("Main pane glass controls");
-    expect(group.hasAttribute("disabled")).toBe(true);
-    expect((await slot.findByLabelText("Pane opacity")).matches(":disabled")).toBe(true);
+  it("disables Hue and shows the neutral note while saturation is 0", async () => {
+    const slot = renderSection({ getAppearance: () => reply({ saturation: 0 }) });
+    expect((await slot.findByLabelText("Hue")).matches(":disabled")).toBe(true);
+    expect(await slot.findByText("No effect while colour strength is 0.")).toBeTruthy();
+    slot.lifecycle.unmount();
+  });
+
+  it("enables Hue once saturation is above 0", async () => {
+    const slot = renderSection({ getAppearance: () => reply({ saturation: 40 }) });
+    expect((await slot.findByLabelText("Hue")).matches(":disabled")).toBe(false);
+    expect(await slot.findByText("Fine-tune the shell tint hue.")).toBeTruthy();
+    slot.lifecycle.unmount();
+  });
+
+  it("disables Tint depth and shows the note while the header/dock tint is 0", async () => {
+    const slot = renderSection({ getAppearance: () => reply({ chromeOpacity: 0 }) });
+    expect((await slot.findByLabelText("Tint depth")).matches(":disabled")).toBe(true);
+    expect(await slot.findByText("No effect while the tint is 0.")).toBeTruthy();
+    slot.lifecycle.unmount();
+  });
+
+  it("enables Tint depth once the tint is above 0", async () => {
+    const slot = renderSection({ getAppearance: () => reply({ chromeOpacity: 0.5 }) });
+    expect((await slot.findByLabelText("Tint depth")).matches(":disabled")).toBe(false);
+    slot.lifecycle.unmount();
+  });
+
+  it("clamps the accent brightness slider to the palette's reachable band", async () => {
+    const slot = renderSection();
+    const expectedBand = reachableAccentBand(
+      DEFAULT_APPEARANCE.accentHue,
+      DEFAULT_APPEARANCE.accentSaturation,
+      "dark",
+    );
+    const slider = (await slot.findByLabelText("Accent brightness")) as HTMLInputElement;
+    expect(slider.min).toBe(String(expectedBand.min));
+    expect(slider.max).toBe(String(expectedBand.max));
+    slot.lifecycle.unmount();
+  });
+
+  it("clamps the accent brightness slider to the light palette's reachable band", async () => {
+    const slot = renderSection({
+      getAppearance: () => reply({ activeThemeId: "plugin:liquid-glass:liquid-glass-light" }),
+    });
+    const expectedBand = reachableAccentBand(
+      DEFAULT_APPEARANCE.accentHue,
+      DEFAULT_APPEARANCE.accentSaturation,
+      "light",
+    );
+    const slider = (await slot.findByLabelText("Accent brightness")) as HTMLInputElement;
+    expect(slider.min).toBe(String(expectedBand.min));
+    expect(slider.max).toBe(String(expectedBand.max));
     slot.lifecycle.unmount();
   });
 
@@ -89,14 +147,14 @@ describe("the Liquid Glass settings section", () => {
     await waitFor(() =>
       expect(
         slot.inspection.rpcCalls.find((call) => call.method === "setAppearance")?.input,
-      ).toEqual({ wallpaperBrightness: 1.6 }),
+      ).toEqual({ wallpaperBrightness: RANGES.wallpaperBrightness.max }),
     );
     slot.lifecycle.unmount();
   });
 
   it("sends a slider change through setAppearance as the clamped value", async () => {
     const slot = renderSection();
-    const slider = await slot.findByLabelText("Blur radius");
+    const slider = await slot.findByLabelText("Sidebar frost");
     fireEvent.change(slider, { target: { value: "40" } });
     await waitFor(() =>
       expect(
@@ -106,21 +164,21 @@ describe("the Liquid Glass settings section", () => {
       ).toBe(true),
     );
     // The slider itself carries the host range, so a value outside it is impossible.
-    expect(slider.getAttribute("min")).toBe("1");
-    expect(slider.getAttribute("max")).toBe("64");
+    expect(slider.getAttribute("min")).toBe(String(RANGES.blur.min));
+    expect(slider.getAttribute("max")).toBe(String(RANGES.blur.max));
     slot.lifecycle.unmount();
   });
 
   it("round-trips a stored sidebar opacity without clamping it to solid", async () => {
     const stored = renderSection({ getAppearance: () => reply({ sidebarOpacity: 0.85 }) });
-    const storedSlider = await stored.findByLabelText("Sidebar opacity") as HTMLInputElement;
+    const storedSlider = await stored.findByLabelText("Sidebar") as HTMLInputElement;
     expect(storedSlider.value).toBe("85");
-    expect(storedSlider.min).toBe("15");
-    expect(storedSlider.max).toBe("100");
+    expect(storedSlider.min).toBe(String(Math.round(RANGES.sidebarOpacity.min * 100)));
+    expect(storedSlider.max).toBe(String(Math.round(RANGES.sidebarOpacity.max * 100)));
     stored.lifecycle.unmount();
 
     const dragged = renderSection({ getAppearance: () => reply({ sidebarOpacity: 0.84 }) });
-    fireEvent.change(await dragged.findByLabelText("Sidebar opacity"), {
+    fireEvent.change(await dragged.findByLabelText("Sidebar"), {
       target: { value: "85" },
     });
     await waitFor(() =>
@@ -133,13 +191,13 @@ describe("the Liquid Glass settings section", () => {
 
   it("writes overlay controls and clamps all three chrome rows", async () => {
     const slot = renderSection();
-    fireEvent.change(await slot.findByLabelText("Overlay opacity"), {
+    fireEvent.change(await slot.findByLabelText("Menus, sheets and cards"), {
       target: { value: "97" },
     });
-    fireEvent.click(await slot.findByLabelText("Compact solid panes"));
-    fireEvent.change(await slot.findByLabelText("Chrome opacity"), { target: { value: "999" } });
-    fireEvent.change(await slot.findByLabelText("Chrome fade"), { target: { value: "999" } });
-    fireEvent.change(await slot.findByLabelText("Chrome blur"), { target: { value: "999" } });
+    fireEvent.click(await slot.findByLabelText("Solid panels on phones"));
+    fireEvent.change(await slot.findByLabelText("Header and dock tint"), { target: { value: "999" } });
+    fireEvent.change(await slot.findByLabelText("Tint depth"), { target: { value: "999" } });
+    fireEvent.change(await slot.findByLabelText("Header and prompt box frost"), { target: { value: "999" } });
     await waitFor(() => {
       const writes = slot.inspection.rpcCalls
         .filter((call) => call.method === "setAppearance")
@@ -147,8 +205,8 @@ describe("the Liquid Glass settings section", () => {
       expect(writes).toContainEqual({ overlayOpacity: 0.97 });
       expect(writes).toContainEqual({ compactSolidPanes: false });
       expect(writes).toContainEqual({ chromeOpacity: 1 });
-      expect(writes).toContainEqual({ chromeFade: 96 });
-      expect(writes).toContainEqual({ chromeBlur: 48 });
+      expect(writes).toContainEqual({ chromeFade: RANGES.chromeFade.max });
+      expect(writes).toContainEqual({ chromeBlur: RANGES.chromeBlur.max });
     });
     slot.lifecycle.unmount();
   });
@@ -227,14 +285,11 @@ describe("the Liquid Glass settings section", () => {
     slot.lifecycle.unmount();
   });
 
-  it("keeps the fine-adjustment sliders in Advanced, collapsed by default", async () => {
+  it("keeps the fine-adjustment sliders directly visible, no Advanced drawer", async () => {
     const slot = renderSection();
-    const summary = await slot.findByText("Advanced");
-    const details = summary.closest("details");
-    expect(details?.hasAttribute("open")).toBe(false);
-    fireEvent.click(summary);
-    expect(details?.hasAttribute("open")).toBe(true);
-    expect(await slot.findByLabelText("Accent lightness")).toBeTruthy();
+    expect(slot.queryByText("Advanced")).toBeNull();
+    expect(await slot.findByLabelText("Accent brightness")).toBeTruthy();
+    expect(await slot.findByLabelText("Hue")).toBeTruthy();
     slot.lifecycle.unmount();
   });
 
@@ -256,8 +311,19 @@ describe("the Liquid Glass settings section", () => {
         slot.inspection.rpcCalls.find((call) => call.method === "setAppearance")?.input,
       ).toEqual({ wallpaper: "ocean" }),
     );
+    fireEvent.click(await slot.findByLabelText("custom"));
     fireEvent.click(await slot.findByText("Test"));
     expect(await slot.findByText("Readable image/png, 12 KB.")).toBeTruthy();
+    slot.lifecycle.unmount();
+  });
+
+  it("only shows the custom-image fields under the Custom wallpaper card", async () => {
+    const slot = renderSection();
+    expect(slot.queryByLabelText("Image URL")).toBeNull();
+    expect(slot.queryByLabelText("Image file on this machine")).toBeNull();
+    fireEvent.click(await slot.findByLabelText("custom"));
+    expect(await slot.findByLabelText("Image URL")).toBeTruthy();
+    expect(await slot.findByLabelText("Image file on this machine")).toBeTruthy();
     slot.lifecycle.unmount();
   });
 
@@ -293,7 +359,6 @@ describe("the liquid-glass-vars content script", () => {
     fetchMock.mockReset();
     document.documentElement.removeAttribute("style");
     document.documentElement.removeAttribute("data-lg-wallpaper");
-    document.documentElement.removeAttribute("data-lg-pane-glass");
     document.documentElement.removeAttribute("data-lg-compact-solid");
   });
 
@@ -311,19 +376,18 @@ describe("the liquid-glass-vars content script", () => {
 
   it("paints the vars for our palette and removes them on dispose", async () => {
     fetchMock.mockResolvedValue({
-      json: async () => ({ ok: true, result: reply({ blur: 40, paneGlass: false }) }),
+      json: async () => ({ ok: true, result: reply({ blur: 40 }) }),
     });
     const mounted = await mountPluginContentScripts(app, { pluginId: "liquid-glass" });
     const root = document.documentElement;
     await waitFor(() => expect(root.style.getPropertyValue("--lg-blur")).toBe("40px"));
-    expect(root.style.getPropertyValue("--lg-pane-a")).toBe("0.85");
+    expect(root.style.getPropertyValue("--lg-pane-a")).toBe(String(DEFAULT_APPEARANCE.paneOpacity));
     expect(root.style.getPropertyValue("--lg-overlay-a")).toBe("0.94");
     expect(root.style.getPropertyValue("--lg-wp-brightness")).toBe("1");
-    expect(root.style.getPropertyValue("--lg-wp-blur")).toBe("0px");
+    expect(root.style.getPropertyValue("--lg-wp-blur")).toBe(`${DEFAULT_APPEARANCE.wallpaperBlur}px`);
     expect(root.style.getPropertyValue("--lg-wp-sat")).toBe("1.1");
     expect(root.style.getPropertyValue("--lg-vibrancy")).toBe("70");
     expect(root.style.getPropertyValue("--lg-accent-l")).toBe("62%");
-    expect(root.getAttribute("data-lg-pane-glass")).toBe("off");
     expect(root.getAttribute("data-lg-compact-solid")).toBe("on");
     expect(root.getAttribute("data-lg-wallpaper")).toBe("aurora");
 

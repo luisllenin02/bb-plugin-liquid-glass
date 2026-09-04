@@ -70,45 +70,49 @@ export function WallpaperCards({
           <span className="mt-1 block text-xs text-foreground">Custom</span>
         </button>
       </div>
-      <Row label="Wallpaper URL" description="An https:// image. Used when Wallpaper is set to Custom.">
-        <TextField
-          label="Wallpaper URL"
-          value={appearance.wallpaperUrl ?? ""}
-          placeholder="https://…"
-          onCommit={(next) =>
-            onChange({ wallpaperUrl: next.trim() === "" ? null : next.trim() })
-          }
-        />
-      </Row>
-      <Row
-        label="Wallpaper file"
-        description="An absolute path on the bb server, up to 20 MB, png/jpg/webp/avif/gif. Used when no URL is set."
-      >
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
+      {appearance.wallpaper === "custom" ? (
+        <>
+          <Row label="Image URL" description="An https:// image.">
             <TextField
-              label="Wallpaper file"
-              value={appearance.wallpaperPath ?? ""}
-              placeholder="/home/…/wallpaper.jpg"
+              label="Image URL"
+              value={appearance.wallpaperUrl ?? ""}
+              placeholder="https://…"
               onCommit={(next) =>
-                onChange({ wallpaperPath: next.trim() === "" ? null : next.trim() })
+                onChange({ wallpaperUrl: next.trim() === "" ? null : next.trim() })
               }
             />
-            <ActionButton
-              onClick={() => {
-                void onTestPath(appearance.wallpaperPath ?? "").then((result) =>
-                  setTestResult(result.detail),
-                );
-              }}
-            >
-              Test
-            </ActionButton>
-          </div>
-          {testResult ? (
-            <span className="text-2xs text-muted-foreground">{testResult}</span>
-          ) : null}
-        </div>
-      </Row>
+          </Row>
+          <Row
+            label="Image file on this machine"
+            description="An absolute path on the bb server, up to 20 MB, png/jpg/webp/avif/gif. Used when no URL is set."
+          >
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2">
+                <TextField
+                  label="Image file on this machine"
+                  value={appearance.wallpaperPath ?? ""}
+                  placeholder="/home/…/wallpaper.jpg"
+                  onCommit={(next) =>
+                    onChange({ wallpaperPath: next.trim() === "" ? null : next.trim() })
+                  }
+                />
+                <ActionButton
+                  onClick={() => {
+                    void onTestPath(appearance.wallpaperPath ?? "").then((result) =>
+                      setTestResult(result.detail),
+                    );
+                  }}
+                >
+                  Test
+                </ActionButton>
+              </div>
+              {testResult ? (
+                <span className="text-2xs text-muted-foreground">{testResult}</span>
+              ) : null}
+            </div>
+          </Row>
+        </>
+      ) : null}
     </div>
   );
 }

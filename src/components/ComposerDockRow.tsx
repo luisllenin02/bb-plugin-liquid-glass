@@ -73,7 +73,7 @@ export function ContextMeterRow() {
   return (
     <Row
       label="Context meter"
-      description="Under the prompt keeps the context bar as a slim marker in the row below the prompt box; hover or click it to read the numbers. With the cards leaves it in the status stack. Saved on this device."
+      description="A slim marker under the prompt, or a card in the status stack. Saved on this device."
     >
       <Segmented
         label="Context meter"
@@ -106,11 +106,11 @@ export function ComposerDockRow() {
 
   return (
     <Row
-      label="Status above the prompt"
-      description="Stack tucks the goal, todo, and workflow cards behind the prompt box as a see-through deck; hover or click a card to read it, and use the rail on its right edge to bring a card to the front. Pills fold them into one line; tap a pill to open its card. Auto uses pills on phones and cards on desktop. Saved on this device."
+      label="Status cards above the prompt"
+      description="Cards, a see-through deck, or one line of pills. Auto uses pills on phones and cards on desktop. Saved on this device."
     >
       <Segmented
-        label="Status above the prompt"
+        label="Status cards above the prompt"
         value={mode}
         options={OPTIONS}
         onChange={(next) => {
