@@ -18,6 +18,7 @@ import {
 import { APPEARANCE_EVENT } from "./src/theme-mode.js";
 import { AppearanceSection } from "./src/components/AppearanceSection.js";
 import { DOCK_ATTRIBUTE_FILTER, installComposerDock } from "./src/composer-dock.js";
+import { installHomeShellMarker } from "./src/home-shell.js";
 import { DockToggleButton } from "./src/components/DockToggleButton.js";
 
 /**
@@ -449,6 +450,16 @@ export default definePluginApp((app) => {
     id: "composer-dock",
     mount({ signal }) {
       return installComposerDock(signal, watchDocument);
+    },
+  });
+
+  // Flag the document while the new-thread home screen is mounted, so the
+  // theme can paint the phone's safe-area strip under its dock from the one
+  // ancestor the host does not clip (see the compact media block).
+  app.contentScripts.register({
+    id: "home-shell",
+    mount({ signal }) {
+      return installHomeShellMarker(signal, watchDocument);
     },
   });
 

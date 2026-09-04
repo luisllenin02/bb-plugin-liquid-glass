@@ -566,9 +566,6 @@ html [data-promptbox-shell] > .grid > * {
   html [data-testid="root-compose-compact-composer"] [data-promptbox] {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / max(var(--lg-chrome-a, 0.72), 0.7)) !important;
   }
-  /* The new-thread dock ends where the layout's safe-area padding begins,
-     so its tint stopped in a hard line above the phone's home indicator.
-     Extend the dock through that strip so the tint runs to the screen edge. */
   /* The side panel is a fixed sheet from the very top of the viewport, so
      its tab row sat under the phone's status bar (clock over the close
      button). Pad it by the top inset. It also takes the sidebar's glass
@@ -581,15 +578,71 @@ html [data-promptbox-shell] > .grid > * {
     box-shadow: none;
     -webkit-backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3); backdrop-filter: blur(var(--lg-blur, 24px)) saturate(1.3);
   }
-  html [data-testid="root-compose-compact-composer"] {
-    bottom: calc(-1 * var(--bb-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
-  }
+  /* The new-thread dock is the one bottom dock that still carried the desktop
+     chrome treatment: a blurred, saturated backdrop box, a tint gradient, and
+     an inset hairline. Each of those ends in a hard horizontal edge on a phone
+     wallpaper, and the host's `bg-background` wrapper inside the dock painted
+     a pane-alpha rectangle with its own hard top edge. Clear the dock and the
+     wrapper; the blend below replaces them. */
+  html [data-testid="root-compose-compact-composer"],
   html [data-testid="root-compose-compact-composer"] > .bg-background {
-    padding-bottom: calc(1rem + var(--bb-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    background-color: transparent !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  /* The Recent list scrolls under the dock, so a fully clear dock prints list
+     rows through the environment strip. Paint the dock's glass on a pseudo
+     element instead: it reaches `--lg-home-fade` above the dock (the prompt
+     card starts 8px in, too close to fade inside the box) and a mask takes
+     both the tint and the blur to nothing across that strip. No box edge
+     remains for the eye to catch. `z-index: -1` keeps it under the card;
+     the dock's own z-index makes it a stacking context, so this cannot slip
+     beneath the list. The tint floors at the pane alpha: the cleared
+     wrapper used to give the dock that much, and with the chrome dial at 0
+     the environment strip would otherwise sit on blur alone. */
+  html [data-testid="root-compose-compact-composer"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: calc(-1 * var(--lg-home-fade, 56px));
+    z-index: -1;
+    pointer-events: none;
+    background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-home-dock-a, max(var(--lg-chrome-a, 0.72), var(--glass-pane-a))));
+    -webkit-backdrop-filter: blur(var(--lg-chrome-blur, 20px));
+    backdrop-filter: blur(var(--lg-chrome-blur, 20px));
+    -webkit-mask-image: linear-gradient(to bottom, hsl(0 0% 0% / 0) 0, hsl(0 0% 0% / 1) var(--lg-home-fade, 56px));
+    mask-image: linear-gradient(to bottom, hsl(0 0% 0% / 0) 0, hsl(0 0% 0% / 1) var(--lg-home-fade, 56px));
+  }
+  /* The host clips the Recent list at the same safe-area boundary. A row
+     icon or title sitting under the environment strip is blurred by the
+     glass above but still ends in a hard cut there, which leaves a bright
+     smudge and a faint seam. Fade the list itself to nothing over its last
+     `--lg-home-list-fade`, so nothing bright reaches the clip. */
+  html [data-testid="root-compose-compact-scroll-viewport"] {
+    -webkit-mask-image: linear-gradient(to bottom, hsl(0 0% 0% / 1) calc(100% - var(--lg-home-list-fade, 64px)), hsl(0 0% 0% / 0) 100%);
+    mask-image: linear-gradient(to bottom, hsl(0 0% 0% / 1) calc(100% - var(--lg-home-list-fade, 64px)), hsl(0 0% 0% / 0) 100%);
+  }
+  /* Two host wrappers between the layout and the home screen clip overflow,
+     so nothing inside the dock can reach the screen edge: the dock's tint
+     used to stop in a hard line where the layout's safe-area padding began,
+     with the bare pane below it. The layout content shell owns that padding
+     and is not clipped, so while the home screen is mounted (the plugin's
+     home-shell content script sets the attribute) it paints the same tint
+     across exactly the safe-area strip. On other screens the strip stays as
+     it was. */
+  html[data-lg-home] [data-testid="app-layout-content-shell"] {
+    background-image: linear-gradient(hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-home-dock-a, max(var(--lg-chrome-a, 0.72), var(--glass-pane-a)))), hsl(var(--glass-h) var(--glass-s) var(--glass-l) / var(--lg-home-dock-a, max(var(--lg-chrome-a, 0.72), var(--glass-pane-a)))));
+    background-repeat: no-repeat;
+    background-position: bottom;
+    background-size: 100% var(--bb-safe-area-bottom, env(safe-area-inset-bottom, 0px));
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :root, .light, .dark { --glass-overlay-a: 1; --lg-composer-idle-a: 1; --lg-composer-focus-a: 1; }
+  :root, .light, .dark { --glass-overlay-a: 1; --lg-composer-idle-a: 1; --lg-composer-focus-a: 1; --lg-home-dock-a: 1; }
   :is(header.bg-surface-scrim, [data-secondary-panel-shelf], [data-testid="root-compose-compact-composer"], [data-scroll-footer], [data-app-composer], [data-follow-up-composer-footer], [data-promptbox], button[aria-label="Scroll to latest event"]) {
     background-color: hsl(var(--glass-h) var(--glass-s) var(--glass-l) / 1);
     background-image: none;

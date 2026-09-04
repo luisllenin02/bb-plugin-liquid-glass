@@ -5,7 +5,9 @@ import { test } from "node:test";
 for (const file of ["themes/liquid-glass.css", "themes/liquid-glass-light.css"]) {
   test(`${file} chrome tint fades to transparent, not to the pane alpha`, () => {
     const css = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-    const lines = css.split("\n").filter((line) => /linear-gradient\(to (?:top|bottom),/.test(line));
+    // Tint gradients only: the phone new-thread blend masks its backdrop with
+    // a gradient too, and a mask has no tint stop to check.
+    const lines = css.split("\n").filter((line) => /linear-gradient\(to (?:top|bottom),/.test(line) && !/mask-image/.test(line));
     assert.equal(lines.length, 2, "header and dock gradients present");
     for (const line of lines) {
       assert.match(line, /var\(--lg-chrome-a, 0\.72\)\) 0, hsl\(var\(--glass-h\) var\(--glass-s\) var\(--glass-l\) \/ 0\) var\(--lg-chrome-fade, 40px\)\)/, "end stop is fully transparent");

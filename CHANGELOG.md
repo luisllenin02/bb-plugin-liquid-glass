@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.21 — 2026-09-03
+
+### Phones
+
+- **The new-thread screen's dock no longer ends in hard lines.** Its blur box,
+  hairline, and the host's pane-coloured wrapper each drew an edge above the
+  prompt card, and the tint stopped in a second line above the home indicator
+  because two host wrappers clip the dock at the safe-area boundary. The dock is
+  now clear; its glass is a masked backdrop that fades in over the 56px above
+  the card, and while the home screen is mounted the un-clipped layout shell
+  paints the safe-area strip in the same tint (new `home-shell` content script,
+  `html[data-lg-home]`). Reduced transparency turns the blend solid. The Recent list
+  itself fades out over its last 64px, so a row under the environment strip no
+  longer ends in a blurred smudge at that same clip.
+
 ## 0.5.20 — 2026-09-03
 
 ### Settings

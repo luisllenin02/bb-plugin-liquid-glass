@@ -371,6 +371,7 @@ describe("the liquid-glass-vars content script", () => {
       "liquid-glass-vars",
       "thread-composer-scroll-state",
       "composer-dock",
+      "home-shell",
     ]);
   });
 
