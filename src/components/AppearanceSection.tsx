@@ -157,7 +157,7 @@ export function AppearanceSection() {
       <Section title="Phones">
         <Row
           label="Solid panels on phones"
-          description="On small screens the main pane, sheets, the sidebar drawer and the side panel go nearly solid so text stays readable over the wallpaper."
+          description="On small screens the main pane, dialogs, drawers, toasts and the command palette go nearly solid so text stays readable over the wallpaper. The sidebar drawer and the side panel keep the sidebar's glass."
         >
           <Toggle
             label="Solid panels on phones"
